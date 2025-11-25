@@ -6,5 +6,5 @@ fetch('/api/hello')
   })
   .catch(() => {
     const el = document.getElementById('message')
-    if (el) el.textContent = '请求失败'
+    if (el) el.textContent = 'Request failed'
   })

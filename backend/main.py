@@ -4,7 +4,7 @@ app = Flask(__name__, static_folder="../frontend", static_url_path="/static")
 
 @app.route("/")
 def index():
-    return send_file("frontend/index.html")
+    return send_file("../frontend/index.html")
 
 @app.get("/api/hello")
 def hello():

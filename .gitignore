@@ -1,6 +1,24 @@
-.venv/
+# Python
 __pycache__/
-*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# macOS
 .DS_Store
-.idea/
+
+# IDE
 .vscode/
+.idea/
+
+# Flask instance folder
+instance/
+
+# node modules (如果 frontend 用 npm)
+node_modules/
+dist/
