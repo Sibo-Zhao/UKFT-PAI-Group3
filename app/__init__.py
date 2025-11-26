@@ -33,11 +33,15 @@ def create_app(config_class=Config):
     from app.routes.assignments import assignments_bp
     from app.routes.academic import academic_bp
     from app.routes.students import students_bp
+    from app.routes.reports import reports_bp  
+    from app.routes.auth import auth_bp  
     app.register_blueprint(surveys_bp)
     app.register_blueprint(courses_bp)
     app.register_blueprint(assignments_bp)
     app.register_blueprint(academic_bp)
     app.register_blueprint(students_bp)
+    app.register_blueprint(reports_bp)  # Add this
+    app.register_blueprint(auth_bp) 
     
     # Root route
     @app.route('/')

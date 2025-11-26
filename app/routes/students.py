@@ -6,10 +6,33 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy import func, and_
 from app.models import Student, ModuleRegistration, WeeklySurvey, WeeklyAttendance, Submission, db
 from datetime import datetime
+from app.schemas import student_schema, students_schema
 
 # Create blueprint
 students_bp = Blueprint('students', __name__, url_prefix='/students')
 
+@students_bp.route('', methods=['GET'])
+def get_all_students():
+    """Get all students in the system."""
+    try:
+        students = Student.query.all()
+        result = students_schema.dump(students)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@students_bp.route('/<string:student_id>', methods=['GET'])
+def get_student(student_id):
+    """Get detailed information for a specific student."""
+    try:
+        student = db.session.get(Student, student_id)  # Updated to use db.session.get()
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
+        
+        result = student_schema.dump(student)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @students_bp.route('/at_risk', methods=['GET'])
 def get_at_risk_students():
@@ -129,7 +152,8 @@ def get_academic_performance(student_id):
         JSON with grades, attendance, and submission stats
     """
     try:
-        student = Student.query.get(student_id)
+        # student = Student.query.get(student_id)
+        student = db.session.get(Student, student_id)
         if not student:
             return jsonify({"error": "Student not found"}), 404
         
@@ -180,7 +204,8 @@ def get_wellbeing_trends(student_id):
         JSON with stress, sleep, and social connection trends
     """
     try:
-        student = Student.query.get(student_id)
+        # student = Student.query.get(student_id)
+        student = db.session.get(Student, student_id)
         if not student:
             return jsonify({"error": "Student not found"}), 404
         
@@ -240,7 +265,8 @@ def get_full_profile(student_id):
         JSON with student info, academic performance, and wellbeing data
     """
     try:
-        student = Student.query.get(student_id)
+        # student = Student.query.get(student_id)
+        student = db.session.get(Student, student_id)
         if not student:
             return jsonify({"error": "Student not found"}), 404
         

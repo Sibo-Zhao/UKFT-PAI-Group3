@@ -6,6 +6,23 @@ from marshmallow import fields, validate
 
 ma = Marshmallow()
 
+class StudentSchema(ma.Schema):
+    """Schema for student serialization."""
+    
+    student_id = fields.Str(required=True)
+    first_name = fields.Str(required=True)
+    last_name = fields.Str(required=True)
+    email = fields.Str(required=True)
+    contact_no = fields.Str(allow_none=True)
+    enrolled_year = fields.Int()
+    current_course_id = fields.Str(allow_none=True)
+    
+    class Meta:
+        ordered = True
+
+# Create schema instances
+student_schema = StudentSchema()
+students_schema = StudentSchema(many=True)
 
 class WeeklySurveySchema(ma.Schema):
     """Schema for weekly survey serialization."""
@@ -18,7 +35,7 @@ class WeeklySurveySchema(ma.Schema):
         required=True,
         validate=validate.Range(min=1, max=5, error="Stress level must be between 1 and 5")
     )
-    sleep_hours = fields.Decimal(
+    sleep_hours = fields.Float(
         required=True,
         as_string=False,
         validate=validate.Range(min=0, max=24, error="Sleep hours must be between 0 and 24")
