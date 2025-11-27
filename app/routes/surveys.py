@@ -2,13 +2,40 @@
 Survey routes blueprint.
 Flask blueprint for weekly survey endpoints.
 """
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from app.models import WeeklySurvey, db
 from app.schemas import weekly_surveys_schema
 
 # Create blueprint
 surveys_bp = Blueprint('surveys', __name__, url_prefix='/api')
 
+@surveys_bp.route('/wellbeing/surveys/<string:student_id>', methods=['DELETE'])
+def delete_student_surveys(student_id):
+    """Delete all survey data for a specific student."""
+    try:
+        from app.models import ModuleRegistration
+        
+        # Get all registrations for this student
+        registrations = ModuleRegistration.query.filter_by(student_id=student_id).all()
+        registration_ids = [r.registration_id for r in registrations]
+        
+        if not registration_ids:
+            return jsonify({"error": "Student not found or has no registrations"}), 404
+        
+        # Delete all surveys for this student's registrations
+        deleted_count = WeeklySurvey.query.filter(
+            WeeklySurvey.registration_id.in_(registration_ids)
+        ).delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            "message": f"Deleted {deleted_count} survey records for student {student_id}",
+            "deleted_count": deleted_count
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 @surveys_bp.route('/surveys', methods=['GET'])
 def get_all_surveys():
@@ -59,7 +86,8 @@ def bulk_upload_surveys():
         created_count = 0
         for survey_data in surveys:
             # Validate registration exists
-            registration = ModuleRegistration.query.get(survey_data['registration_id'])
+            # registration = ModuleRegistration.query.get(survey_data['registration_id'])
+            registration = db.session.get(ModuleRegistration, survey_data['registration_id'])
             if not registration:
                 continue  # Skip invalid registrations
             

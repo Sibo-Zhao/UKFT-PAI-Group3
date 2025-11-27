@@ -10,12 +10,13 @@ Test Cases:
 import pytest
 import json
 from datetime import datetime, timedelta
+from datetime import timezone
 
 
 class TestCreateAssignment:
     """Test suite for creating assignments."""
     
-    def test_create_assignment_success(self, client):
+    def test_create_assignment_success(self, client, sample_survey_data): 
         """
         Test that POST /academic/assignments creates a new assignment.
         TDD: This test will fail until we implement the endpoint.
@@ -25,7 +26,8 @@ class TestCreateAssignment:
             "module_id": "M001",
             "title": "Test Assignment",
             "description": "Test description",
-            "due_date": (datetime.now() + timedelta(days=7)).isoformat(),
+            # "due_date": (datetime.now() + timedelta(days=7)).isoformat(),
+            "due_date": "2025-12-01T00:00:00Z",
             "max_score": 100,
             "weightage_percent": 25.0
         }
@@ -41,7 +43,7 @@ class TestCreateAssignment:
         assert data["assignment_id"] == "A999"
         assert data["title"] == "Test Assignment"
     
-    def test_create_assignment_missing_fields(self, client):
+    def test_create_assignment_missing_fields(self, client, sample_survey_data):
         """
         Test that missing required fields returns 400.
         TDD: Validation error handling.
@@ -67,7 +69,8 @@ class TestCreateAssignment:
             "assignment_id": "A999",
             "module_id": "INVALID",
             "title": "Test Assignment",
-            "due_date": (datetime.now() + timedelta(days=7)).isoformat(),
+            # "due_date": (datetime.now() + timedelta(days=7)).isoformat(),
+            "due_date": "2025-12-01T00:00:00Z",
             "max_score": 100
         }
         
@@ -88,6 +91,16 @@ class TestUpdateAssignment:
         """
         Test that PUT /academic/assignments/{id} updates an assignment.
         """
+        assignment_data = {
+        "assignment_id": "A001",
+        "module_id": "M001", 
+        "title": "Original Title",
+        "description": "Test description",
+        "due_date": "2025-12-01T00:00:00Z",
+        "max_score": 100,
+        "weightage_percent": 25.0
+        }
+        client.post("/academic/assignments", json=assignment_data)
         update_data = {
             "title": "Updated Assignment Title",
             "max_score": 150
@@ -128,6 +141,16 @@ class TestDeleteAssignment:
         """
         Test that DELETE /academic/assignments/{id} deletes an assignment.
         """
+        assignment_data = {
+        "assignment_id": "A001",
+        "module_id": "M001",
+        "title": "Test Assignment", 
+        "description": "Test description",
+        "due_date": "2025-12-01T00:00:00Z",
+        "max_score": 100,
+        "weightage_percent": 25.0
+        }
+        client.post("/academic/assignments", json=assignment_data)
         response = client.delete("/academic/assignments/A001")
         
         assert response.status_code == 200

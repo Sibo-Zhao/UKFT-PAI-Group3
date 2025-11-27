@@ -28,12 +28,14 @@ def create_assignment():
         assignment_data = request.get_json()
         
         # Check if module exists
-        module = Module.query.get(assignment_data.get('module_id'))
+        # module = Module.query.get(assignment_data.get('module_id'))
+        module = db.session.get(Module, assignment_data.get('module_id'))
         if not module:
             return jsonify({"error": "Module not found"}), 404
         
         # Check if assignment_id already exists
-        existing = Assignment.query.get(assignment_data.get('assignment_id'))
+        # existing = Assignment.query.get(assignment_data.get('assignment_id'))
+        existing = db.session.get(Assignment, assignment_data.get('assignment_id'))
         if existing:
             return jsonify({"error": "Assignment ID already exists"}), 400
         
@@ -78,7 +80,8 @@ def update_assignment(assignment_id):
         JSON response with updated assignment (200) or error (404/400)
     """
     try:
-        assignment = Assignment.query.get(assignment_id)
+        # assignment = Assignment.query.get(assignment_id)
+        assignment = db.session.get(Assignment, assignment_id)
         if not assignment:
             return jsonify({"error": "Assignment not found"}), 404
         
@@ -120,7 +123,8 @@ def delete_assignment(assignment_id):
         JSON response with success message (200) or error (404)
     """
     try:
-        assignment = Assignment.query.get(assignment_id)
+        # assignment = Assignment.query.get(assignment_id)
+        assignment = db.session.get(Assignment, assignment_id)
         if not assignment:
             return jsonify({"error": "Assignment not found"}), 404
         
