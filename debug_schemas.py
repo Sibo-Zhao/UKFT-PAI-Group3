@@ -1,5 +1,5 @@
 from app import create_app
-from app.schemas import course_schema, assignment_schema
+from app.views.schemas import course_schema, assignment_schema
 
 app = create_app()
 with app.app_context():
