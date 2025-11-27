@@ -14,7 +14,7 @@ load_dotenv()
 # Get database URL from environment
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "mysql+pymysql://root:password@localhost:3306/uni_wellbeing_db"
+    "mysql+pymysql://pyuser:paigroup3@13.40.85.93/uni_wellbeing_db?charset=utf8mb4"
 )
 
 # Create SQLAlchemy engine

@@ -6,7 +6,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from app.config import Config, TestConfig
 from app.models import db
-from app.schemas import ma
+from app.views.schemas import ma
 
 
 def create_app(config_class=Config):

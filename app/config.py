@@ -17,7 +17,7 @@ class Config:
     # Database settings
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'DATABASE_URL',
-        'mysql+pymysql://root:1234@localhost:3306/uni_wellbeing_db'
+        'mysql+pymysql://pyuser:paigroup3@13.40.85.93/uni_wellbeing_db?charset=utf8mb4'
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
