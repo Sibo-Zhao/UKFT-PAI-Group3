@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>液态玻璃设计语言规范</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <h1 class="mb-4">液态玻璃设计语言规范</h1>
+
+    <section class="mb-4">
+      <h2 class="h4">视觉风格</h2>
+      <div class="glass-card glass-interactive mb-3">
+        <div class="glass-header">
+          <h5 class="glass-title mb-0">统一材质与光影</h5>
+        </div>
+        <div class="glass-body">
+          <ul class="mb-0">
+            <li>半透明磨砂玻璃：使用 <code>backdrop-filter: blur(var(--glass-blur))</code> 与透明白背景</li>
+            <li>色彩渐变：与侧边栏、按钮一致的浅灰渐变背景</li>
+            <li>圆角、边框：统一使用 <code>--glass-radius</code> 与 <code>--glass-border</code></li>
+            <li>阴影：统一使用 <code>--glass-shadow</code>，强调层次且性能友好</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-4">
+      <h2 class="h4">布局规范</h2>
+      <div class="glass-card">
+        <div class="glass-header">
+          <h5 class="glass-title mb-0">间距与标题</h5>
+        </div>
+        <div class="glass-body">
+          <ul>
+            <li>分区统一使用 <code>.glass-section</code> 与 <code>.glass-grid</code> 控制间距</li>
+            <li>标题使用 <code>.glass-title</code>（字重 600、色彩 #2c3e50）</li>
+            <li>内容区域透明度与模糊度与卡片一致</li>
+            <li>交互元素（按钮、输入框）继承统一圆角与过渡</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-4">
+      <h2 class="h4">交互效果</h2>
+      <div class="glass-card">
+        <div class="glass-header">
+          <h5 class="glass-title mb-0">悬停与点击反馈</h5>
+        </div>
+        <div class="glass-body">
+          <ul>
+            <li>悬停：<code>.glass-interactive:hover</code> 轻微上移与阴影增强</li>
+            <li>点击：<code>.glass-interactive:active</code> 还原位移并阴影回落</li>
+            <li>过渡：统一使用 <code>--glass-transition</code> 时长与缓动</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-4">
+      <h2 class="h4">HTML 结构模板</h2>
+      <div class="row glass-grid">
+        <div class="col-md-6">
+          <div class="glass-card glass-interactive">
+            <div class="glass-header">
+              <h5 class="glass-title mb-0">Upload Survey Data</h5>
+            </div>
+            <div class="glass-body">
+              <form>
+                <div class="mb-3">
+                  <input type="file" class="form-control" accept=".csv">
+                </div>
+                <button type="button" class="btn btn-primary w-100">上传 CSV</button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="glass-card glass-interactive">
+            <div class="glass-header d-flex justify-content-between align-items-center">
+              <h5 class="glass-title mb-0">Early Warning Students</h5>
+              <button class="btn btn-outline-secondary btn-sm">导出 CSV</button>
+            </div>
+            <div class="glass-body">
+              <div class="table-responsive">
+                <table class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>Name</th><th>Stress</th><th>Sleep</th><th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>示例</td><td><span class="badge bg-warning">6</span></td><td>6.8h</td><td><span class="status-medium">Medium</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row glass-grid mt-3">
+        <div class="col-md-6">
+          <div class="glass-card glass-interactive">
+            <div class="glass-header">
+              <h5 class="glass-title mb-0">Weekly Report</h5>
+            </div>
+            <div class="glass-body">
+              <div class="row">
+                <div class="col-6"><div id="stress-chart" style="height: 200px;"></div></div>
+                <div class="col-6"><div id="sleep-chart" style="height: 200px;"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="glass-card glass-interactive">
+            <div class="glass-header">
+              <h5 class="glass-title mb-0">Data Visualization</h5>
+            </div>
+            <div class="glass-body">
+              <div id="plot-container" style="height: 300px;">
+                <div class="text-center text-muted">图表占位</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-4">
+      <h2 class="h4">响应式与性能</h2>
+      <div class="glass-card">
+        <div class="glass-header">
+          <h5 class="glass-title mb-0">策略</h5>
+        </div>
+        <div class="glass-body">
+          <ul>
+            <li>尽量限制模糊范围在卡片内，避免全屏大面积模糊</li>
+            <li>阴影强度统一，减少因多层阴影导致的重绘开销</li>
+            <li>小屏下减少过强阴影，保证滚动与交互流畅</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+  <svg width="0" height="0" style="position: fixed; pointer-events: none;">
+    <filter id="glassRefraction" x="-10%" y="-10%" width="120%" height="120%" filterUnits="objectBoundingBox">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="2" result="noise" />
+      <feGaussianBlur in="noise" stdDeviation="2" result="blurNoise" />
+      <feDisplacementMap in="SourceGraphic" in2="blurNoise" scale="8" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+</body>
+<script type="module" src="liquid-init.js"></script>
+</html>

@@ -6,6 +6,16 @@ let students = [];
 let courses = [];
 let currentPage = 'login';
 
+// Title configuration (can be overridden via localStorage)
+// Reason: centralize sidebar title management and prevent Settings page from showing "settings"
+const TITLE_CONFIG_KEY = 'titleConfig';
+const defaultTitleConfig = {
+  sidebarTitle: 'Wellbeing System',
+  pageSidebarTitles: {
+    'settings.html': 'Wellbeing System'
+  }
+};
+
 // Mock data for demonstration
 const mockStudents = [
   { id: 1, name: 'Alice Johnson', stress_level: 8, sleep_hours: 4.5, grades: [85, 92, 78], starred: true },
@@ -27,19 +37,65 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeApp() {
-  // Check if user is already logged in
   const savedUser = localStorage.getItem('currentUser');
   if (savedUser) {
     currentUser = JSON.parse(savedUser);
-    showPage(currentUser.role === 'wellbeing' ? 'wellbeing-dashboard' : 'course-dashboard');
   }
 
-  // Setup event listeners
+  const pageName = getCurrentPageName();
+  const isLoginPage = pageName === 'index.html';
+
+  if (!isLoginPage && !currentUser) {
+    window.location.href = 'index.html';
+    return;
+  }
+
+  if (isLoginPage && currentUser) {
+    window.location.href = currentUser.role === 'wellbeing' ? 'wellbeing.html' : 'course.html';
+    return;
+  }
+
   setupEventListeners();
-  
-  // Load initial data
+  applyTitleConfig();
   loadStudents();
   loadCourses();
+
+  if (pageName === 'wellbeing.html') {
+    loadWellbeingDashboard();
+  } else if (pageName === 'students.html') {
+    loadStudentsTable();
+  } else if (pageName === 'course.html') {
+    loadCourseDashboard();
+  } else if (pageName === 'attendance.html') {
+    loadCourseWeeklyReport();
+  }
+}
+
+function getCurrentPageName() {
+  const path = window.location.pathname;
+  const name = path.substring(path.lastIndexOf('/') + 1) || 'index.html';
+  return name;
+}
+
+function getTitleConfig() {
+  try {
+    const raw = localStorage.getItem(TITLE_CONFIG_KEY);
+    return raw ? JSON.parse(raw) : defaultTitleConfig;
+  } catch (e) {
+    return defaultTitleConfig;
+  }
+}
+
+function applyTitleConfig() {
+  const cfg = getTitleConfig();
+  const pageName = getCurrentPageName();
+  const override = (cfg.pageSidebarTitles && cfg.pageSidebarTitles[pageName]) || null;
+  const el = document.querySelector('.sidebar-title');
+  if (el) {
+    if (override) {
+      el.textContent = override;
+    }
+  }
 }
 
 function setupEventListeners() {
@@ -102,35 +158,21 @@ function handleLogin(event) {
 function logout() {
   currentUser = null;
   localStorage.removeItem('currentUser');
-  showPage('login');
+  window.location.href = 'index.html';
 }
 
 // Page navigation
 function showPage(pageId) {
-  // Hide all pages
-  const pages = ['login-page', 'wellbeing-dashboard', 'students', 'course-dashboard', 'attendance', 'settings'];
-  pages.forEach(page => {
-    const element = document.getElementById(page);
-    if (element) {
-      element.classList.add('d-none');
-    }
-  });
-
-  // Show selected page
-  const selectedPage = document.getElementById(pageId);
-  if (selectedPage) {
-    selectedPage.classList.remove('d-none');
-    currentPage = pageId;
-    
-    // Load page-specific data
-    if (pageId === 'wellbeing-dashboard') {
-      loadWellbeingDashboard();
-    } else if (pageId === 'students') {
-      loadStudentsTable();
-    } else if (pageId === 'course-dashboard') {
-      loadCourseDashboard();
-    }
-  }
+  const map = {
+    'login': 'index.html',
+    'wellbeing-dashboard': 'wellbeing.html',
+    'students': 'students.html',
+    'course-dashboard': 'course.html',
+    'attendance': 'attendance.html',
+    'settings': 'settings.html'
+  };
+  const target = map[pageId] || 'index.html';
+  window.location.href = target;
 }
 
 // Dashboard functions
@@ -158,7 +200,7 @@ function loadEarlyWarningStudents() {
     tbody.innerHTML = earlyWarningStudents.map(student => `
       <tr>
         <td>${student.name}</td>
-        <td><span class="badge ${getStressLevelClass(student.stress_level)}">${student.stress_level}</span></td>
+        <td>${student.stress_level}</td>
         <td>${student.sleep_hours}h</td>
         <td><span class="status-${getStatusLevel(student.stress_level, student.sleep_hours)}">${getStatusText(student.stress_level, student.sleep_hours)}</span></td>
       </tr>
@@ -428,7 +470,7 @@ function renderStudentsTable() {
       <tr>
         <td>${student.name}</td>
         <td><span class="badge ${getStressLevelClass(student.stress_level)}">${student.stress_level}</span></td>
-        <td>${student.sleep_hours}h</td>
+        <td>${parseFloat(student.sleep_hours) <= 5 ? `<span class="badge bg-danger">${student.sleep_hours}h</span>` : `${student.sleep_hours}h`}</td>
         <td>${student.grades ? student.grades.join(', ') : 'N/A'}</td>
         <td>
           <button class="btn btn-sm btn-outline-primary me-1" onclick="editStudent(${student.id})">
@@ -482,7 +524,7 @@ function renderFilteredStudents(filteredStudents) {
       <tr>
         <td>${student.name}</td>
         <td><span class="badge ${getStressLevelClass(student.stress_level)}">${student.stress_level}</span></td>
-        <td>${student.sleep_hours}h</td>
+        <td>${parseFloat(student.sleep_hours) <= 5 ? `<span class="badge bg-danger">${student.sleep_hours}h</span>` : `${student.sleep_hours}h`}</td>
         <td>${student.grades ? student.grades.join(', ') : 'N/A'}</td>
         <td>
           <button class="btn btn-sm btn-outline-primary me-1" onclick="editStudent(${student.id})">
