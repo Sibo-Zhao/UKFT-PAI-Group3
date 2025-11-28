@@ -21,7 +21,7 @@ class TestWeeklySurveysEndpoint:
         Test that GET /api/surveys returns 200 OK and a list of surveys.
         TDD: This test validates the Flask endpoint works correctly.
         """
-        response = client.get("/api/surveys")
+        response = client.get("/surveys")
         
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -33,7 +33,7 @@ class TestWeeklySurveysEndpoint:
         Test that each survey object has the correct JSON structure.
         TDD: Defines the expected response schema.
         """
-        response = client.get("/api/surveys")
+        response = client.get("/surveys")
         surveys = json.loads(response.data)
         
         # Check first survey has all required fields
@@ -57,7 +57,7 @@ class TestWeeklySurveysEndpoint:
         Test that survey fields have correct data types.
         TDD: Ensures proper data validation.
         """
-        response = client.get("/api/surveys")
+        response = client.get("/surveys")
         survey = json.loads(response.data)[0]
         
         assert isinstance(survey["survey_id"], int)
@@ -73,7 +73,7 @@ class TestWeeklySurveysEndpoint:
         Test that stress_level is between 1 and 5.
         TDD: Validates business rules.
         """
-        response = client.get("/api/surveys")
+        response = client.get("/surveys")
         surveys = json.loads(response.data)
         
         for survey in surveys:
@@ -84,7 +84,7 @@ class TestWeeklySurveysEndpoint:
         Test that social_connection_score is between 1 and 5.
         TDD: Validates business rules.
         """
-        response = client.get("/api/surveys")
+        response = client.get("/surveys")
         surveys = json.loads(response.data)
         
         for survey in surveys:
@@ -95,7 +95,7 @@ class TestWeeklySurveysEndpoint:
         Test that endpoint handles empty database gracefully.
         TDD: Edge case handling.
         """
-        response = client.get("/api/surveys")
+        response = client.get("/surveys")
         
         assert response.status_code == 200
         assert json.loads(response.data) == []
@@ -105,7 +105,7 @@ class TestWeeklySurveysEndpoint:
         Test that the endpoint returns the correct number of surveys.
         TDD: Verify query returns all records.
         """
-        response = client.get("/api/surveys")
+        response = client.get("/surveys")
         surveys = json.loads(response.data)
         
         assert len(surveys) == len(sample_survey_data)
@@ -119,7 +119,7 @@ class TestSurveyDataIntegrity:
         Test that surveys have valid registration IDs.
         TDD: Ensures foreign key relationships are maintained.
         """
-        response = client.get("/api/surveys")
+        response = client.get("/surveys")
         surveys = json.loads(response.data)
         
         for survey in surveys:
@@ -130,7 +130,7 @@ class TestSurveyDataIntegrity:
         Test that week numbers are positive integers.
         TDD: Validates week number constraints.
         """
-        response = client.get("/api/surveys")
+        response = client.get("/surveys")
         surveys = json.loads(response.data)
         
         for survey in surveys:
@@ -141,7 +141,7 @@ class TestSurveyDataIntegrity:
         Test that sleep hours are in a reasonable range (0-24).
         TDD: Validates sleep hours constraints.
         """
-        response = client.get("/api/surveys")
+        response = client.get("/surveys")
         surveys = json.loads(response.data)
         
         for survey in surveys:
