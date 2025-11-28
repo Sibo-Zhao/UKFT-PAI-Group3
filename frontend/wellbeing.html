@@ -44,28 +44,45 @@
 
         <div class="col-md-9 col-lg-10 px-4">
           <div class="row mt-4 glass-section">
-            <div class="col-md-4">
+            <div class="col-lg-8 col-xl-9">
               <div class="glass-card glass-interactive">
                 <div class="glass-header">
-                  <h5 class="glass-title mb-0">Upload Survey Data</h5>
+                  <h5 class="glass-title mb-0">Data Visualization</h5>
                 </div>
                 <div class="glass-body">
-                  <form id="survey-upload-form">
-                    <div class="mb-3">
-                      <input type="file" class="form-control" id="survey-file" accept=".csv" required>
+                  <div id="plot-container" style="height: 300px;" class="mb-3"></div>
+                  <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                      <select class="form-select" id="x-axis-select">
+                        <option value="modules">Modules</option>
+                        <option value="weeks">Weeks</option>
+                        <option value="grades">Grades</option>
+                        <option value="attendance">Attendance</option>
+                        <option value="stress-level" selected>Stress Level</option>
+                        <option value="sleep-hours">Sleep Hours</option>
+                      </select>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">
-                      <i class="bi bi-upload me-2"></i>Upload CSV
-                    </button>
-                  </form>
+                    <div class="col-md-4">
+                      <select class="form-select" id="y-axis-select">
+                        <option value="modules">Modules</option>
+                        <option value="weeks">Weeks</option>
+                        <option value="grades">Grades</option>
+                        <option value="attendance">Attendance</option>
+                        <option value="stress-level">Stress Level</option>
+                        <option value="sleep-hours" selected>Sleep Hours</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4 d-grid">
+                      <button class="btn btn-primary" onclick="generatePlot()">
+                        <i class="bi bi-graph-up me-2"></i>Generate Plot
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <div class="col-md-8">
-              <div class="glass-card glass-interactive">
+              <div class="glass-card glass-interactive mt-3">
                 <div class="glass-header d-flex justify-content-between align-items-center">
-                  <h5 class="glass-title mb-0">Early Warning Students</h5>
+                  <h5 class="glass-title mb-0">Warning</h5>
                   <button class="btn btn-outline-secondary btn-sm" onclick="exportEarlyWarning()">
                     <i class="bi bi-download me-2"></i>Export CSV
                   </button>
@@ -87,63 +104,40 @@
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="row mt-4 glass-section">
-            <div class="col-md-6">
-              <div class="glass-card glass-interactive">
-                <div class="glass-header">
-                  <h5 class="glass-title mb-0">Weekly Report</h5>
-                </div>
-                <div class="glass-body">
-                  <div id="weekly-summary" class="mb-4">
-                    <p class="text-muted">Loading weekly summary...</p>
+            <div class="col-lg-4 col-xl-3">
+              <div class="d-flex flex-column gap-3">
+                <div class="glass-card glass-interactive">
+                  <div class="glass-header">
+                    <h5 class="glass-title mb-0">Weekly Report</h5>
                   </div>
-                  <div class="row">
-                    <div class="col-6">
-                      <div id="stress-chart" style="height: 200px;"></div>
+                  <div class="glass-body">
+                    <div id="weekly-summary" class="mb-2">
+                      <p class="text-muted">Loading weekly summary...</p>
                     </div>
-                    <div class="col-6">
-                      <div id="sleep-chart" style="height: 200px;"></div>
+                    <div class="mini-charts d-flex flex-column align-items-center gap-2">
+                      <div class="text-center">
+                        <div id="stress-chart" class="mini-pie"></div>
+                        <div class="mini-pie-title">Stress</div>
+                      </div>
+                      <div class="text-center">
+                        <div id="sleep-chart" class="mini-pie"></div>
+                        <div class="mini-pie-title">Sleep</div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div class="col-md-6">
-              <div class="glass-card glass-interactive">
-                <div class="glass-header">
-                  <h5 class="glass-title mb-0">Data Visualization</h5>
-                </div>
-                <div class="glass-body">
-                  <div class="row mb-3">
-                    <div class="col-6">
-                      <select class="form-select" id="x-axis-select">
-                        <option value="modules">Modules</option>
-                        <option value="weeks">Weeks</option>
-                        <option value="grades">Grades</option>
-                        <option value="attendance">Attendance</option>
-                        <option value="stress-level" selected>Stress Level</option>
-                        <option value="sleep-hours">Sleep Hours</option>
-                      </select>
-                    </div>
-                    <div class="col-6">
-                      <select class="form-select" id="y-axis-select">
-                        <option value="modules">Modules</option>
-                        <option value="weeks">Weeks</option>
-                        <option value="grades">Grades</option>
-                        <option value="attendance">Attendance</option>
-                        <option value="stress-level">Stress Level</option>
-                        <option value="sleep-hours" selected>Sleep Hours</option>
-                      </select>
-                    </div>
+
+                <div class="glass-card glass-interactive">
+                  <div class="glass-header">
+                    <h5 class="glass-title mb-0">Upload Survey</h5>
                   </div>
-                  <button class="btn btn-primary mb-3" onclick="generatePlot()">
-                    <i class="bi bi-graph-up me-2"></i>Generate Plot
-                  </button>
-                  <div id="plot-container" style="height: 300px;">
-                    <div class="text-center text-muted">Click "Generate Plot" to create visualization</div>
+                  <div class="glass-body">
+                    <input type="file" id="survey-file" accept=".csv" class="d-none" onchange="handleSurveyFileChange(event)">
+                    <button class="btn btn-primary btn-sm w-100" onclick="document.getElementById('survey-file').click()">
+                      <i class="bi bi-upload me-2"></i>Upload(.csv)
+                    </button>
                   </div>
                 </div>
               </div>

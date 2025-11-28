@@ -44,109 +44,105 @@
 
         <div class="col-md-9 col-lg-10 px-4">
           <div class="row mt-4 glass-section">
-            <div class="col-md-8">
-              <div class="glass-card glass-interactive">
-                <div class="glass-header d-flex justify-content-between align-items-center">
-                  <h5 class="glass-title mb-0">Course Information</h5>
-                  <select class="form-select w-auto" id="course-select" onchange="loadCourseInfo()">
-                    <option value="">Select a course</option>
-                    <option value="math101">Mathematics 101</option>
-                    <option value="phys101">Physics 101</option>
-                    <option value="chem101">Chemistry 101</option>
-                  </select>
+            <div class="col-md-9">
+              <div class="d-flex flex-column gap-3">
+                <div class="glass-card glass-interactive">
+                  <div class="glass-header d-flex justify-content-between align-items-center">
+                    <h5 class="glass-title mb-0">Course Information</h5>
+                    <select class="form-select w-auto" id="course-select" onchange="loadCourseInfo()">
+                      <option value="">Select a course</option>
+                      <option value="math101">Mathematics 101</option>
+                      <option value="phys101">Physics 101</option>
+                      <option value="chem101">Chemistry 101</option>
+                    </select>
+                  </div>
+                  <div class="glass-body">
+                    <div id="course-info-content">
+                      <p class="text-muted">Please select a course to view information</p>
+                    </div>
+                  </div>
                 </div>
-                <div class="glass-body">
-                  <div id="course-info-content">
-                    <p class="text-muted">Please select a course to view information</p>
+
+                <div class="glass-card glass-interactive">
+                  <div class="glass-header">
+                    <h5 class="glass-title mb-0">Course Analytics</h5>
+                  </div>
+                  <div class="glass-body">
+                    <div id="course-plot-container" style="height: 300px;" class="mb-3"></div>
+                    <div class="row g-2 align-items-end">
+                      <div class="col-md-4">
+                        <select class="form-select" id="course-x-axis-select">
+                          <option value="modules">Modules</option>
+                          <option value="weeks">Weeks</option>
+                          <option value="grades" selected>Grades</option>
+                          <option value="attendance">Attendance</option>
+                          <option value="stress-level">Stress Level</option>
+                          <option value="sleep-hours">Sleep Hours</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4">
+                        <select class="form-select" id="course-y-axis-select">
+                          <option value="modules">Modules</option>
+                          <option value="weeks">Weeks</option>
+                          <option value="grades">Grades</option>
+                          <option value="attendance" selected>Attendance</option>
+                          <option value="stress-level">Stress Level</option>
+                          <option value="sleep-hours">Sleep Hours</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 d-grid">
+                        <button class="btn btn-primary" onclick="generateCoursePlot()">
+                          <i class="bi bi-graph-up me-2"></i>Generate Plot
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="col-md-4">
-              <div class="glass-card glass-interactive">
-                <div class="glass-header">
-                  <h5 class="glass-title mb-0">Upload Data</h5>
+            <div class="col-md-3">
+              <div class="d-flex flex-column gap-3">
+                <div class="glass-card glass-interactive">
+                  <div class="glass-header">
+                    <h5 class="glass-title mb-0">Weekly Report</h5>
+                  </div>
+                  <div class="glass-body">
+                    <div id="course-weekly-summary" class="mb-2">
+                      <p class="text-muted">Loading weekly summary...</p>
+                    </div>
+                    <div class="mini-charts d-flex flex-column align-items-center gap-2">
+                      <div class="text-center">
+                        <div id="course-attendance-mini" class="mini-pie"></div>
+                        <div class="mini-pie-title">Attendance</div>
+                      </div>
+                      <div class="text-center">
+                        <div id="course-stress-mini" class="mini-pie"></div>
+                        <div class="mini-pie-title">Stress Level</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div class="glass-body">
-                  <form id="course-upload-form">
-                    <div class="mb-3">
-                      <div class="form-check">
-                        <input class="form-check-input" type="radio" name="upload-type" id="grades" value="grades" checked>
-                        <label class="form-check-label" for="grades">Grades</label>
+
+                <div class="glass-card glass-interactive">
+                  <div class="glass-header">
+                    <h5 class="glass-title mb-0">Upload</h5>
+                  </div>
+                  <div class="glass-body">
+                    <div class="mb-2 d-flex align-items-center justify-content-between">
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="course-upload-type" id="course-upload-attendance" value="attendance" checked>
+                        <label class="form-check-label" for="course-upload-attendance">Attendance</label>
                       </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="radio" name="upload-type" id="attendance" value="attendance">
-                        <label class="form-check-label" for="attendance">Attendance</label>
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="course-upload-type" id="course-upload-grades" value="grades">
+                        <label class="form-check-label" for="course-upload-grades">Grades</label>
                       </div>
                     </div>
-                    <div class="mb-3">
-                      <input type="file" class="form-control" id="course-file" accept=".csv" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">
-                      <i class="bi bi-upload me-2"></i>Upload CSV
+                    <input type="file" id="course-file" accept=".csv" class="d-none" onchange="handleCourseFileChange(event)">
+                    <button class="btn btn-primary btn-sm w-100" onclick="document.getElementById('course-file').click()">
+                      <i class="bi bi-upload me-2"></i>Upload(.csv)
                     </button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="row mt-4 glass-section">
-            <div class="col-md-6">
-              <div class="glass-card glass-interactive">
-                <div class="glass-header">
-                  <h5 class="glass-title mb-0">Weekly Report</h5>
-                </div>
-                <div class="glass-body">
-                  <div id="course-weekly-summary" class="mb-4">
-                    <p class="text-muted">Loading weekly summary...</p>
-                  </div>
-                  <div class="row">
-                    <div class="col-6">
-                      <div id="attendance-chart" style="height: 200px;"></div>
-                    </div>
-                    <div class="col-6">
-                      <div id="grade-chart" style="height: 200px;"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <div class="glass-card glass-interactive">
-                <div class="glass-header">
-                  <h5 class="glass-title mb-0">Course Analytics</h5>
-                </div>
-                <div class="glass-body">
-                  <div class="row mb-3">
-                    <div class="col-6">
-                      <select class="form-select" id="course-x-axis-select">
-                        <option value="modules">Modules</option>
-                        <option value="weeks">Weeks</option>
-                        <option value="grades" selected>Grades</option>
-                        <option value="attendance">Attendance</option>
-                        <option value="stress-level">Stress Level</option>
-                        <option value="sleep-hours">Sleep Hours</option>
-                      </select>
-                    </div>
-                    <div class="col-6">
-                      <select class="form-select" id="course-y-axis-select">
-                        <option value="modules">Modules</option>
-                        <option value="weeks">Weeks</option>
-                        <option value="grades">Grades</option>
-                        <option value="attendance" selected>Attendance</option>
-                        <option value="stress-level">Stress Level</option>
-                        <option value="sleep-hours">Sleep Hours</option>
-                      </select>
-                    </div>
-                  </div>
-                  <button class="btn btn-primary mb-3" onclick="generateCoursePlot()">
-                    <i class="bi bi-graph-up me-2"></i>Generate Plot
-                  </button>
-                  <div id="course-plot-container" style="height: 300px;">
-                    <div class="text-center text-muted">Click "Generate Plot" to create visualization</div>
                   </div>
                 </div>
               </div>

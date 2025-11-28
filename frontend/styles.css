@@ -500,7 +500,8 @@ html[data-role="course"] .role-wellbeing { display: none; }
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border-radius: 8px;
   padding: 15px;
-  border: 2px dashed #dee2e6;
+  border: none;
+  overflow: hidden;
 }
 
 /* Unified spacing for feature sections */
@@ -661,3 +662,12 @@ html[data-role="course"] .role-wellbeing { display: none; }
 }
 
 /* removed overriding button text color to allow LiquidGlass white labels */
+/* Weekly inline mini pie charts */
+.weekly-inline { gap: 1rem; }
+.mini-charts { gap: 10px; }
+.mini-pie { width: 120px; height: 120px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.28); box-shadow: 0 8px 20px rgba(34, 37, 41, 0.18); background: transparent; }
+#stress-chart.mini-pie, #sleep-chart.mini-pie { padding: 0; }
+#stress-chart.mini-pie, #sleep-chart.mini-pie { background: transparent; }
+.mini-pie-title { font-size: 0.85rem; color: #495057; margin-top: 6px; }
+
+.mini-pie-tooltip { position: absolute; z-index: 1050; display: none; background: rgba(255, 255, 255, 0.85); color: #222529; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 10px; padding: 8px 10px; box-shadow: 0 8px 20px rgba(34, 37, 41, 0.24); backdrop-filter: blur(8px) saturate(160%); -webkit-backdrop-filter: blur(8px) saturate(160%); font-size: 0.85rem; line-height: 1.2; }
