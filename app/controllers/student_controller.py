@@ -270,3 +270,90 @@ def get_full_profile(student_id):
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+def update_student(student_id, data):
+    """
+    Update student information.
+    
+    Args:
+        student_id: Student identifier
+        data: Dictionary with fields to update
+        
+    Returns:
+        JSON response with updated student (200) or error (404/400)
+    """
+    try:
+        student = db.session.get(Student, student_id)
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
+        
+        # Validate email format if provided
+        if 'email' in data:
+            email = data['email']
+            if email and '@' not in email:
+                return jsonify({"error": "Invalid email format"}), 400
+        
+        # Update allowed fields
+        allowed_fields = ['first_name', 'last_name', 'email', 'enrolled_year', 'current_course_id']
+        for field in allowed_fields:
+            if field in data:
+                setattr(student, field, data[field])
+        
+        db.session.commit()
+        
+        result = student_schema.dump(student)
+        return jsonify(result), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+def delete_student(student_id):
+    """
+    Delete a student and all related records (cascade delete).
+    
+    Args:
+        student_id: Student identifier
+        
+    Returns:
+        JSON response with success message (200) or error (404)
+    """
+    try:
+        student = db.session.get(Student, student_id)
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
+        
+        # Get all registrations for this student
+        registrations = ModuleRegistration.query.filter_by(student_id=student_id).all()
+        registration_ids = [r.registration_id for r in registrations]
+        
+        # Delete related records (cascade delete)
+        # 1. Delete weekly surveys
+        WeeklySurvey.query.filter(
+            WeeklySurvey.registration_id.in_(registration_ids)
+        ).delete(synchronize_session=False)
+        
+        # 2. Delete weekly attendance
+        WeeklyAttendance.query.filter(
+            WeeklyAttendance.registration_id.in_(registration_ids)
+        ).delete(synchronize_session=False)
+        
+        # 3. Delete submissions
+        Submission.query.filter(
+            Submission.registration_id.in_(registration_ids)
+        ).delete(synchronize_session=False)
+        
+        # 4. Delete module registrations
+        ModuleRegistration.query.filter_by(student_id=student_id).delete()
+        
+        # 5. Finally, delete the student
+        db.session.delete(student)
+        db.session.commit()
+        
+        return jsonify({
+            "message": f"Student {student_id} and all related records deleted successfully"
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
