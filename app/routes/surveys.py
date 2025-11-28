@@ -6,16 +6,16 @@ from flask import Blueprint, request
 from app.controllers import survey_controller, reports_controller
 
 # Create blueprint
-surveys_bp = Blueprint('surveys', __name__)
+surveys_bp = Blueprint('surveys', __name__, url_prefix='/surveys')
 
 
-@surveys_bp.route('/api/wellbeing/surveys/<string:student_id>', methods=['DELETE'])
+@surveys_bp.route('/<string:student_id>', methods=['DELETE'])
 def delete_student_surveys(student_id):
     """Delete all survey data for a specific student."""
     return survey_controller.delete_student_surveys(student_id)
 
 
-@surveys_bp.route('/api/surveys', methods=['GET'])
+@surveys_bp.route('/', methods=['GET'])
 def get_all_surveys():
     """
     Get all weekly survey records.
@@ -26,7 +26,7 @@ def get_all_surveys():
     return survey_controller.get_all_surveys()
 
 
-@surveys_bp.route('/api/wellbeing/surveys/bulk', methods=['POST'])
+@surveys_bp.route('/bulk', methods=['POST'])
 def bulk_upload_surveys():
     """
     Bulk upload survey records.
@@ -52,7 +52,7 @@ def bulk_upload_surveys():
     return survey_controller.bulk_upload_surveys(data)
 
 
-@surveys_bp.route('/wellbeing/early-warning', methods=['GET'])
+@surveys_bp.route('/early-warning', methods=['GET'])
 def get_early_warning():
     """
     Get early warning report for students with high stress levels (4-5) or low sleep hours (< 5).
@@ -65,7 +65,7 @@ def get_early_warning():
     return reports_controller.get_early_warning()
 
 
-@surveys_bp.route('/wellbeing/weekly', methods=['GET'])
+@surveys_bp.route('/weekly', methods=['GET'])
 def get_weekly_report():
     """
     Get weekly report with average stress level and sleep hours, comparing current week with previous week.
