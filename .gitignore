@@ -49,6 +49,7 @@ instance/
 # node modules (如果 frontend 用 npm)
 node_modules/
 dist/
+node_modules/
 
 # OS
 .DS_Store
