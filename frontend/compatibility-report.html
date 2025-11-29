@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!-- Coursework version: light edits + student-style comments -->
+
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>浏览器兼容性测试报告</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <h1 class="mb-4">浏览器兼容性测试报告</h1>
+
+    <div class="glass-card mb-3">
+      <div class="glass-header">
+        <h5 class="glass-title mb-0">测试环境</h5>
+      </div>
+      <div class="glass-body">
+        <ul>
+          <li>Chrome 120+、Edge 120+、Safari 16+、Firefox 120+</li>
+          <li>macOS、Windows 11、iOS 17、Android 14</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="glass-card mb-3">
+      <div class="glass-header">
+        <h5 class="glass-title mb-0">关键样式支持</h5>
+      </div>
+      <div class="glass-body">
+        <ul>
+          <li><code>backdrop-filter</code>：Chrome/Edge/Safari 原生支持；Firefox 需启用实验特性，默认走降级</li>
+          <li><code>@supports</code> 条件：所有现代浏览器支持，用于优雅降级</li>
+          <li>CSS 变量：现代浏览器全面支持，用于统一半径、过渡、模糊等参数</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="glass-card mb-3">
+      <div class="glass-header">
+        <h5 class="glass-title mb-0">降级与兼容策略</h5>
+      </div>
+      <div class="glass-body">
+        <ul>
+          <li>不支持 <code>backdrop-filter</code> 时：使用更不透明的线性渐变替代，并保持统一圆角与边框</li>
+          <li>阴影强度适配：移动端使用较轻阴影，减少重绘开销</li>
+          <li>响应式布局：通过 Bootstrap 栅格和自定义 <code>.glass-grid</code> 控制间距与断点</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="glass-card">
+      <div class="glass-header">
+        <h5 class="glass-title mb-0">结论</h5>
+      </div>
+      <div class="glass-body">
+        <p class="mb-0">统一液态玻璃样式在现代浏览器表现一致；在不支持模糊的环境下提供稳定的视觉降级，保证可用性与性能。</p>
+      </div>
+    </div>
+  </div>
+  <svg width="0" height="0" style="position: fixed; pointer-events: none;">
+    <filter id="glassRefraction" x="-10%" y="-10%" width="120%" height="120%" filterUnits="objectBoundingBox">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="2" seed="2" result="noise" />
+      <feGaussianBlur in="noise" stdDeviation="2" result="blurNoise" />
+      <feDisplacementMap in="SourceGraphic" in2="blurNoise" scale="8" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+</body>
+</html>

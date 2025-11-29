@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+.sidebar a { color: #eee; text-decoration: none; margin-bottom: 8px; display: block; }
+.sidebar a.active { font-weight: bold; }
+#plot-container { background: #f5f5f5; border: 1px solid #ddd; }
+</style>
+</head>
+<body>
+<div class="container-fluid">
+<div class="row">
+
+
+<!-- Sidebar -->
+<div class="col-md-3 col-lg-2 sidebar">
+<h5>Wellbeing System</h5>
+<a class="active" href="wellbeing.html">Student Wellbeing</a>
+<a href="students.html">Student Table</a>
+<a href="settings.html">Settings</a>
+</div>
+
+
+<!-- Main Content -->
+<div class="col-md-9 col-lg-10 p-4">
+
+
+<!-- Chart Box -->
+<div class="glass-card mb-3">
+<h5>Data Visualisation</h5>
+<div id="plot-container" style="height:250px;" class="mb-3"></div>
+
+
+<div class="row g-2">
+<div class="col-md-4">
+<select class="form-select" id="x-axis-select">
+<option value="stress">Stress Level</option>
+<option value="sleep">Sleep Hours</option>
+</select>
+</div>
+<div class="col-md-4">
+<select class="form-select" id="y-axis-select">
+<option value="sleep">Sleep Hours</option>
+<option value="grades">Grades</option>
+</select>
+</div>
+<div class="col-md-4">
+<button class="btn btn-primary w-100">Generate Plot</button>
+</div>
+</div>
+</div>
+
+
+<!-- Warning Table -->
+<div class="glass-card mb-3">
+<h5>Warning List</h5>
+<table class="table table-striped mt-2">
+<thead>
+<tr><th>Name</th><th>Stress</th><th>Sleep</th><th>Status</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+
+<!-- Upload -->
+<div class="glass-card">
+<h5>Upload Survey</h5>
+<input type="file" class="form-control mt-2">
+</div>
+
+
+</div>
+</div>
+</div>
+</body>
+</html>

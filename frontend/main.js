@@ -6,6 +6,16 @@ let students = [];
 let courses = [];
 let currentPage = 'login';
 
+// Title configuration (can be overridden via localStorage)
+// Reason: centralize sidebar title management and prevent Settings page from showing "settings"
+const TITLE_CONFIG_KEY = 'titleConfig';
+const defaultTitleConfig = {
+  sidebarTitle: 'Wellbeing System',
+  pageSidebarTitles: {
+    'settings.html': 'Wellbeing System'
+  }
+};
+
 // Mock data for demonstration
 const mockStudents = [
   { id: 1, name: 'Alice Johnson', stress_level: 8, sleep_hours: 4.5, grades: [85, 92, 78], starred: true },
@@ -27,19 +37,65 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeApp() {
-  // Check if user is already logged in
   const savedUser = localStorage.getItem('currentUser');
   if (savedUser) {
     currentUser = JSON.parse(savedUser);
-    showPage(currentUser.role === 'wellbeing' ? 'wellbeing-dashboard' : 'course-dashboard');
   }
 
-  // Setup event listeners
+  const pageName = getCurrentPageName();
+  const isLoginPage = pageName === 'index.html';
+
+  if (!isLoginPage && !currentUser) {
+    window.location.href = 'index.html';
+    return;
+  }
+
+  if (isLoginPage && currentUser) {
+    window.location.href = currentUser.role === 'wellbeing' ? 'wellbeing.html' : 'course.html';
+    return;
+  }
+
   setupEventListeners();
-  
-  // Load initial data
+  applyTitleConfig();
   loadStudents();
   loadCourses();
+
+  if (pageName === 'wellbeing.html') {
+    loadWellbeingDashboard();
+  } else if (pageName === 'students.html') {
+    loadStudentsTable();
+  } else if (pageName === 'course.html') {
+    loadCourseDashboard();
+  } else if (pageName === 'attendance.html') {
+    loadCourseWeeklyReport();
+  }
+}
+
+function getCurrentPageName() {
+  const path = window.location.pathname;
+  const name = path.substring(path.lastIndexOf('/') + 1) || 'index.html';
+  return name;
+}
+
+function getTitleConfig() {
+  try {
+    const raw = localStorage.getItem(TITLE_CONFIG_KEY);
+    return raw ? JSON.parse(raw) : defaultTitleConfig;
+  } catch (e) {
+    return defaultTitleConfig;
+  }
+}
+
+function applyTitleConfig() {
+  const cfg = getTitleConfig();
+  const pageName = getCurrentPageName();
+  const override = (cfg.pageSidebarTitles && cfg.pageSidebarTitles[pageName]) || null;
+  const el = document.querySelector('.sidebar-title');
+  if (el) {
+    if (override) {
+      el.textContent = override;
+    }
+  }
 }
 
 function setupEventListeners() {
@@ -102,35 +158,21 @@ function handleLogin(event) {
 function logout() {
   currentUser = null;
   localStorage.removeItem('currentUser');
-  showPage('login');
+  window.location.href = 'index.html';
 }
 
 // Page navigation
 function showPage(pageId) {
-  // Hide all pages
-  const pages = ['login-page', 'wellbeing-dashboard', 'students', 'course-dashboard', 'attendance', 'settings'];
-  pages.forEach(page => {
-    const element = document.getElementById(page);
-    if (element) {
-      element.classList.add('d-none');
-    }
-  });
-
-  // Show selected page
-  const selectedPage = document.getElementById(pageId);
-  if (selectedPage) {
-    selectedPage.classList.remove('d-none');
-    currentPage = pageId;
-    
-    // Load page-specific data
-    if (pageId === 'wellbeing-dashboard') {
-      loadWellbeingDashboard();
-    } else if (pageId === 'students') {
-      loadStudentsTable();
-    } else if (pageId === 'course-dashboard') {
-      loadCourseDashboard();
-    }
-  }
+  const map = {
+    'login': 'index.html',
+    'wellbeing-dashboard': 'wellbeing.html',
+    'students': 'students.html',
+    'course-dashboard': 'course.html',
+    'attendance': 'attendance.html',
+    'settings': 'settings.html'
+  };
+  const target = map[pageId] || 'index.html';
+  window.location.href = target;
 }
 
 // Dashboard functions
@@ -153,12 +195,11 @@ function loadStudentsTable() {
 function loadEarlyWarningStudents() {
   const earlyWarningStudents = students.filter(student => student.stress_level >= 7 || student.sleep_hours <= 5);
   const tbody = document.getElementById('early-warning-tbody');
-  
   if (tbody) {
     tbody.innerHTML = earlyWarningStudents.map(student => `
       <tr>
         <td>${student.name}</td>
-        <td><span class="badge ${getStressLevelClass(student.stress_level)}">${student.stress_level}</span></td>
+        <td>${student.stress_level}</td>
         <td>${student.sleep_hours}h</td>
         <td><span class="status-${getStatusLevel(student.stress_level, student.sleep_hours)}">${getStatusText(student.stress_level, student.sleep_hours)}</span></td>
       </tr>
@@ -194,8 +235,8 @@ function loadWeeklyReport() {
     
     summaryDiv.innerHTML = `
       <p class="mb-2"><strong>Average Stress Level:</strong> ${avgStress}/10</p>
-      <p class="mb-2"><strong>Average Sleep Hours:</strong> ${avgSleep} hours</p>
-      <p class="mb-0"><strong>Students at Risk:</strong> ${highRiskCount} students need attention</p>
+      <p class="mb-2"><strong>Average Sleep Hours:</strong> ${avgSleep} h</p>
+      <p class="mb-0"><strong>Students at Risk:</strong> ${highRiskCount} students</p>
     `;
   }
 
@@ -214,57 +255,121 @@ function loadCourseWeeklyReport() {
     `;
   }
 
-  createAttendanceChart();
-  createGradeChart();
+  if (document.getElementById('course-attendance-mini')) {
+    createCourseAttendanceMini();
+  } else {
+    createAttendanceChart();
+  }
+
+  if (document.getElementById('course-stress-mini')) {
+    createCourseStressMini();
+  } else {
+    createGradeChart();
+  }
 }
 
 // Chart creation functions
 function createStressChart() {
   const stressData = students.map(s => s.stress_level);
-  const data = [{
-    values: [
-      stressData.filter(s => s <= 3).length,
-      stressData.filter(s => s > 3 && s <= 6).length,
-      stressData.filter(s => s > 6).length
-    ],
-    labels: ['Low (1-3)', 'Medium (4-6)', 'High (7-10)'],
-    type: 'pie',
-    marker: {
-      colors: ['#27ae60', '#f39c12', '#e74c3c']
-    }
-  }];
-
-  const layout = {
-    title: 'Stress Level Distribution',
-    height: 200,
-    margin: { l: 20, r: 20, t: 40, b: 20 }
-  };
-
-  Plotly.newPlot('stress-chart', data, layout, {responsive: true});
+  const segments = [
+    stressData.filter(s => s <= 3).length,
+    stressData.filter(s => s > 3 && s <= 6).length,
+    stressData.filter(s => s > 6).length
+  ];
+  renderGlassPie('stress-chart', segments, ['#27ae60', '#f39c12', '#e74c3c'], ['Low (1-3)', 'Medium (4-6)', 'High (7-10)']);
 }
 
 function createSleepChart() {
   const sleepData = students.map(s => s.sleep_hours);
-  const data = [{
-    values: [
-      sleepData.filter(s => s <= 4).length,
-      sleepData.filter(s => s > 4 && s <= 7).length,
-      sleepData.filter(s => s > 7).length
-    ],
-    labels: ['Poor (0-4h)', 'Average (5-7h)', 'Good (8+ h)'],
-    type: 'pie',
-    marker: {
-      colors: ['#e74c3c', '#f39c12', '#27ae60']
+  const segments = [
+    sleepData.filter(s => s <= 4).length,
+    sleepData.filter(s => s > 4 && s <= 7).length,
+    sleepData.filter(s => s > 7).length
+  ];
+  renderGlassPie('sleep-chart', segments, ['#e74c3c', '#f39c12', '#27ae60'], ['Poor (0-4h)', 'Average (5-7h)', 'Good (8+h)']);
+}
+
+function renderConicPie(id, segments, colors) {
+  const total = segments.reduce((a, b) => a + b, 0) || 1;
+  let acc = 0;
+  const stops = segments.map((v, i) => {
+    const start = (acc / total) * 360;
+    acc += v;
+    const end = (acc / total) * 360;
+    return `${colors[i]} ${start}deg ${end}deg`;
+  }).join(', ');
+  const el = document.getElementById(id);
+  if (el) {
+    el.style.background = `conic-gradient(${stops})`;
+  }
+}
+
+function renderGlassPie(id, segments, colors, labels) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const size = Math.min(el.clientWidth || 120, el.clientHeight || 120) || 120;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = (size / 2) - 4;
+  const total = segments.reduce((a, b) => a + b, 0) || 1;
+  let start = 0;
+
+  el.innerHTML = '';
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  svg.style.borderRadius = '50%';
+  el.appendChild(svg);
+
+  const tip = (function ensureTip(){
+    let t = el.__tip;
+    if (!t) {
+      t = document.createElement('div');
+      t.className = 'mini-pie-tooltip';
+      document.body.appendChild(t);
+      el.__tip = t;
     }
-  }];
+    return t;
+  })();
 
-  const layout = {
-    title: 'Sleep Hours Distribution',
-    height: 200,
-    margin: { l: 20, r: 20, t: 40, b: 20 }
-  };
+  for (let i = 0; i < segments.length; i++) {
+    const value = segments[i];
+    const angle = (value / total) * Math.PI * 2;
+    const end = start + angle;
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', describeArc(cx, cy, r, start, end));
+    path.setAttribute('fill', colors[i]);
+    path.setAttribute('fill-opacity', '0.7');
+    path.setAttribute('stroke', 'rgba(255,255,255,0.6)');
+    path.setAttribute('stroke-width', '1');
+    path.setAttribute('filter', 'url(#glassRefraction)');
+    svg.appendChild(path);
 
-  Plotly.newPlot('sleep-chart', data, layout, {responsive: true});
+    const percent = Math.round((value / total) * 1000) / 10; // one decimal
+    const label = labels[i] || `Segment ${i+1}`;
+    const show = (evt) => {
+      tip.innerHTML = `${label}: ${percent}% (${value})`;
+      tip.style.display = 'block';
+      tip.style.left = `${evt.pageX + 10}px`;
+      tip.style.top = `${evt.pageY - 10}px`;
+    };
+    const hide = () => { tip.style.display = 'none'; };
+    path.addEventListener('mouseenter', show);
+    path.addEventListener('mousemove', show);
+    path.addEventListener('mouseleave', hide);
+
+    start = end;
+  }
+}
+
+function describeArc(cx, cy, r, startAngle, endAngle) {
+  const sx = cx + r * Math.cos(startAngle);
+  const sy = cy + r * Math.sin(startAngle);
+  const ex = cx + r * Math.cos(endAngle);
+  const ey = cy + r * Math.sin(endAngle);
+  const largeArcFlag = endAngle - startAngle > Math.PI ? 1 : 0;
+  return `M ${cx} ${cy} L ${sx} ${sy} A ${r} ${r} 0 ${largeArcFlag} 1 ${ex} ${ey} Z`;
 }
 
 function createAttendanceChart() {
@@ -308,6 +413,29 @@ function createGradeChart() {
   Plotly.newPlot('grade-chart', data, layout, {responsive: true});
 }
 
+function createCourseAttendanceMini() {
+  const present = Math.round(45 * 0.897); // mock based on 89.7%
+  const absent = Math.max(0, 45 - present);
+  const segments = [present, absent];
+  renderGlassPie('course-attendance-mini', segments, ['#27ae60', '#e74c3c'], ['Present', 'Absent']);
+}
+
+function createCourseGradeMini() {
+  const gradeRanges = ['A (90-100)', 'B (80-89)', 'C (70-79)', 'D (60-69)', 'F (0-59)'];
+  const gradeCounts = [15, 18, 8, 3, 1];
+  renderGlassPie('course-grade-mini', gradeCounts, ['#27ae60', '#3498db', '#f39c12', '#e67e22', '#e74c3c'], gradeRanges);
+}
+
+function createCourseStressMini() {
+  const stressData = students.map(s => s.stress_level);
+  const segments = [
+    stressData.filter(s => s <= 3).length,
+    stressData.filter(s => s > 3 && s <= 6).length,
+    stressData.filter(s => s > 6).length
+  ];
+  renderGlassPie('course-stress-mini', segments, ['#27ae60', '#f39c12', '#e74c3c'], ['Low (1-3)', 'Medium (4-6)', 'High (7-10)']);
+}
+
 // Plot generation functions
 function generatePlot() {
   const xAxis = document.getElementById('x-axis-select').value;
@@ -333,10 +461,13 @@ function generatePlot() {
   };
 
   const layout = {
-    title: `${xAxis.charAt(0).toUpperCase() + xAxis.slice(1)} vs ${yAxis.charAt(0).toUpperCase() + yAxis.slice(1)}`,
     xaxis: { title: xAxis.charAt(0).toUpperCase() + xAxis.slice(1) },
     yaxis: { title: yAxis.charAt(0).toUpperCase() + yAxis.slice(1) },
-    hovermode: 'closest'
+    hovermode: 'closest',
+    margin: { t: 8, r: 20, b: 30, l: 40 },
+    height: 300,
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    paper_bgcolor: 'rgba(0,0,0,0)'
   };
 
   Plotly.newPlot('plot-container', [trace], layout, {responsive: true});
@@ -366,10 +497,13 @@ function generateCoursePlot() {
   };
 
   const layout = {
-    title: `Course Analytics: ${xAxis.charAt(0).toUpperCase() + xAxis.slice(1)} vs ${yAxis.charAt(0).toUpperCase() + yAxis.slice(1)}`,
     xaxis: { title: xAxis.charAt(0).toUpperCase() + xAxis.slice(1) },
     yaxis: { title: yAxis.charAt(0).toUpperCase() + yAxis.slice(1) },
-    hovermode: 'closest'
+    hovermode: 'closest',
+    margin: { t: 8, r: 20, b: 30, l: 40 },
+    height: 300,
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    paper_bgcolor: 'rgba(0,0,0,0)'
   };
 
   Plotly.newPlot('course-plot-container', [trace], layout, {responsive: true});
@@ -428,7 +562,7 @@ function renderStudentsTable() {
       <tr>
         <td>${student.name}</td>
         <td><span class="badge ${getStressLevelClass(student.stress_level)}">${student.stress_level}</span></td>
-        <td>${student.sleep_hours}h</td>
+        <td>${parseFloat(student.sleep_hours) <= 5 ? `<span class="badge bg-danger">${student.sleep_hours}h</span>` : `${student.sleep_hours}h`}</td>
         <td>${student.grades ? student.grades.join(', ') : 'N/A'}</td>
         <td>
           <button class="btn btn-sm btn-outline-primary me-1" onclick="editStudent(${student.id})">
@@ -482,7 +616,7 @@ function renderFilteredStudents(filteredStudents) {
       <tr>
         <td>${student.name}</td>
         <td><span class="badge ${getStressLevelClass(student.stress_level)}">${student.stress_level}</span></td>
-        <td>${student.sleep_hours}h</td>
+        <td>${parseFloat(student.sleep_hours) <= 5 ? `<span class="badge bg-danger">${student.sleep_hours}h</span>` : `${student.sleep_hours}h`}</td>
         <td>${student.grades ? student.grades.join(', ') : 'N/A'}</td>
         <td>
           <button class="btn btn-sm btn-outline-primary me-1" onclick="editStudent(${student.id})">
@@ -576,12 +710,18 @@ function loadCourseInfo() {
     
     if (course) {
       courseInfoContent.innerHTML = `
-        <h6>${course.name}</h6>
-        <p><strong>Course Code:</strong> ${course.code}</p>
-        <p><strong>Instructor:</strong> ${course.instructor}</p>
-        <p><strong>Enrollment:</strong> ${course.enrollment} students</p>
-        <p><strong>Average Grade:</strong> ${course.average_grade}%</p>
-        <p><strong>Attendance Rate:</strong> ${course.attendance_rate}%</p>
+        <p class="mb-1">
+          <strong>Course Code:</strong> ${course.code}
+          &nbsp;&nbsp;|&nbsp;&nbsp;
+          <strong>Instructor:</strong> ${course.instructor}
+        </p>
+        <p class="mb-0">
+          <strong>Enrollment:</strong> ${course.enrollment} students
+          &nbsp;&nbsp;|&nbsp;&nbsp;
+          <strong>Average Grade:</strong> ${course.average_grade}%
+          &nbsp;&nbsp;|&nbsp;&nbsp;
+          <strong>Attendance Rate:</strong> ${course.attendance_rate}%
+        </p>
       `;
     } else {
       courseInfoContent.innerHTML = '<p class="text-muted">Please select a course to view information</p>';
@@ -594,14 +734,25 @@ function handleSurveyUpload(event) {
   event.preventDefault();
   const fileInput = document.getElementById('survey-file');
   const file = fileInput.files[0];
-  
   if (file) {
-    // Simulate file upload
     const reader = new FileReader();
     reader.onload = function(e) {
       alert('Survey data uploaded successfully!');
       fileInput.value = '';
-      loadWellbeingDashboard(); // Refresh data
+      loadWellbeingDashboard();
+    };
+    reader.readAsText(file);
+  }
+}
+
+function handleSurveyFileChange(event) {
+  const file = event.target.files && event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      alert('Survey data uploaded successfully!');
+      event.target.value = '';
+      loadWellbeingDashboard();
     };
     reader.readAsText(file);
   }
@@ -625,14 +776,27 @@ function handleCourseUpload(event) {
   }
 }
 
+function handleCourseFileChange(event) {
+  const file = event.target.files && event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const selected = document.querySelector('input[name="course-upload-type"]:checked');
+      const typ = selected ? selected.value : 'data';
+      alert(`${typ.charAt(0).toUpperCase() + typ.slice(1)} data uploaded successfully!`);
+      event.target.value = '';
+      loadCourseDashboard();
+    };
+    reader.readAsText(file);
+  }
+}
+
 function exportEarlyWarning() {
   const earlyWarningStudents = students.filter(student => student.stress_level >= 7 || student.sleep_hours <= 5);
-  
-  let csvContent = "Name,Stress Level,Sleep Hours,Status\n";
+  let csvContent = "Name,Status\n";
   earlyWarningStudents.forEach(student => {
-    csvContent += `${student.name},${student.stress_level},${student.sleep_hours},${getStatusText(student.stress_level, student.sleep_hours)}\n`;
+    csvContent += `${student.name},${getStatusText(student.stress_level, student.sleep_hours)}\n`;
   });
-
   const blob = new Blob([csvContent], { type: 'text/csv' });
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
