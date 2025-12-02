@@ -9,6 +9,10 @@ Note:
     a proper user model and secure password hashing (e.g., bcrypt).
 """
 from flask import jsonify
+from app.utils.error_handlers import handle_error, log_request_error
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Mock user database - replace with real user model and secure password hashing
 USERS = {
@@ -52,16 +56,21 @@ def login(data):
         password = data.get('password')
         
         if not username or not password:
+            logger.warning("Login attempt with missing credentials")
             return jsonify({"error": "Username and password required"}), 400
         
+        logger.info(f"Login attempt for user: {username}")
         user = USERS.get(username)
         if not user or user['password'] != password:  # Simple check, use hash in production
+            logger.warning(f"Failed login attempt for user: {username}")
             return jsonify({"error": "Invalid credentials"}), 401
         
+        logger.info(f"Successful login for user: {username}, role: {user['role']}")
         return jsonify({
             "message": "Login successful",
             "role": user['role'],
             "username": username
         }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log_request_error("login", e, username=username if 'username' in locals() else 'unknown')
+        return handle_error(e, "in login")
