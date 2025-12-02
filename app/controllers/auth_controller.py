@@ -6,18 +6,27 @@ and role-based access control.
 
 Note:
     Currently uses mock user data. In production, this should be replaced with
-    a proper user model and secure password hashing (e.g., bcrypt).
+    a proper user model and database storage.
 """
 from flask import jsonify
+from werkzeug.security import generate_password_hash, check_password_hash
 from app.utils.error_handlers import handle_error, log_request_error
+from app.utils.validators import LoginSchema, validate_request_data
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Mock user database - replace with real user model and secure password hashing
+# Mock user database with hashed passwords
+# In production, replace with proper User model and database
 USERS = {
-    "cd_user": {"password": "cd_pass", "role": "CD"},
-    "swo_user": {"password": "swo_pass", "role": "SWO"}
+    "cd_user": {
+        "password_hash": generate_password_hash("cd_pass"),
+        "role": "CD"
+    },
+    "swo_user": {
+        "password_hash": generate_password_hash("swo_pass"),
+        "role": "SWO"
+    }
 }
 
 
@@ -52,16 +61,18 @@ def login(data):
         be used in production. Implement proper password hashing and salting.
     """
     try:
-        username = data.get('username')
-        password = data.get('password')
+        # Validate input data
+        validated_data, errors = validate_request_data(LoginSchema, data)
+        if errors:
+            logger.warning(f"Login validation failed: {errors}")
+            return jsonify({"error": "Validation failed", "details": errors}), 400
         
-        if not username or not password:
-            logger.warning("Login attempt with missing credentials")
-            return jsonify({"error": "Username and password required"}), 400
+        username = validated_data['username']
+        password = validated_data['password']
         
         logger.info(f"Login attempt for user: {username}")
         user = USERS.get(username)
-        if not user or user['password'] != password:  # Simple check, use hash in production
+        if not user or not check_password_hash(user['password_hash'], password):
             logger.warning(f"Failed login attempt for user: {username}")
             return jsonify({"error": "Invalid credentials"}), 401
         

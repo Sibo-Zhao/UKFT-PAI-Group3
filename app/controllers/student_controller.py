@@ -3,6 +3,7 @@ from sqlalchemy import func, and_
 from app.models import Student, ModuleRegistration, WeeklySurvey, WeeklyAttendance, Submission, db
 from app.views.schemas import student_schema, students_schema
 from app.utils.error_handlers import handle_error, log_request_error
+from app.utils.validators import StudentUpdateSchema, validate_request_data, validate_email
 import logging
 
 logger = logging.getLogger(__name__)
@@ -300,19 +301,18 @@ def update_student(student_id, data):
             logger.warning(f"Student not found for update: {student_id}")
             return jsonify({"error": "Student not found"}), 404
         
-        # Validate email format if provided
-        if 'email' in data:
-            email = data['email']
-            if email and '@' not in email:
-                logger.warning(f"Invalid email format provided for student: {student_id}")
-                return jsonify({"error": "Invalid email format"}), 400
+        # Validate input data
+        validated_data, errors = validate_request_data(StudentUpdateSchema, data)
+        if errors:
+            logger.warning(f"Student update validation failed for {student_id}: {errors}")
+            return jsonify({"error": "Validation failed", "details": errors}), 400
         
-        # Update allowed fields
+        # Update allowed fields from validated data
         allowed_fields = ['first_name', 'last_name', 'email', 'enrolled_year', 'current_course_id']
         updated_fields = []
         for field in allowed_fields:
-            if field in data:
-                setattr(student, field, data[field])
+            if field in validated_data:
+                setattr(student, field, validated_data[field])
                 updated_fields.append(field)
         
         db.session.commit()
