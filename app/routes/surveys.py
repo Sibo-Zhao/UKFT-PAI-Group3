@@ -1,6 +1,15 @@
 """
-Survey routes blueprint.
-Flask blueprint for weekly survey endpoints.
+Survey Routes Blueprint.
+
+This module defines Flask routes for weekly survey operations including
+survey retrieval, bulk uploads, deletion, and wellbeing reports.
+
+Endpoints:
+    GET /api/surveys - List all surveys
+    POST /api/wellbeing/surveys/bulk - Bulk upload surveys
+    DELETE /api/wellbeing/surveys/<student_id> - Delete student surveys
+    GET /wellbeing/early-warning - Get early warning report
+    GET /wellbeing/weekly - Get weekly wellbeing report
 """
 from flask import Blueprint, request
 from app.controllers import survey_controller, reports_controller

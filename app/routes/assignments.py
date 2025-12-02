@@ -1,6 +1,13 @@
 """
-Academic Assignments routes blueprint.
-Flask blueprint for assignment CRUD operations.
+Academic Assignments Routes Blueprint.
+
+This module defines Flask routes for assignment CRUD operations including
+creation, updates, and deletion of assignments.
+
+Endpoints:
+    POST /academic/assignments - Create new assignment
+    PUT /academic/assignments/<id> - Update assignment
+    DELETE /academic/assignments/<id> - Delete assignment
 """
 from flask import Blueprint, request
 from app.controllers import assignment_controller

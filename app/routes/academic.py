@@ -1,6 +1,18 @@
 """
-Attendance and Submissions routes blueprint.
-Flask blueprint for academic attendance and submission endpoints.
+Academic Routes Blueprint.
+
+This module defines Flask routes for academic operations including attendance
+tracking, grade management, and submission records.
+
+Endpoints:
+    POST /academic/attendance/bulk - Bulk upload attendance
+    GET /academic/attendance - Get attendance records (with filters)
+    PUT /academic/attendance/<id> - Update attendance record
+    GET /academic/submissions - Get submission records (with filters)
+    POST /academic/grades/bulk - Bulk upload grades
+    PUT /academic/grades/<id> - Update grade
+    GET /academic/assignments/<id> - Get assignment details
+    GET /academic/registrations/module/<id> - Get module enrollments
 """
 from flask import Blueprint, request
 from app.controllers import academic_controller

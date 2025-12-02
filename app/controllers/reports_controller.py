@@ -1,9 +1,42 @@
+"""
+Reports Controller Module.
+
+This module generates various analytical reports including academic performance,
+early warning indicators, and weekly wellbeing trends.
+"""
 from flask import jsonify
 from sqlalchemy import func, and_, desc
 from app.models import Student, ModuleRegistration, WeeklyAttendance, Submission, Assignment, WeeklySurvey, db
 
+
 def get_module_academic_report(module_id):
-    """Get academic report for a module (grades, attendance, submissions)."""
+    """
+    Generate comprehensive academic report for a specific module.
+    
+    Calculates aggregate statistics including average grades, submission rates,
+    and attendance rates for all students enrolled in the module.
+    
+    Args:
+        module_id (str): The unique identifier of the module.
+    
+    Returns:
+        tuple: A tuple containing:
+            - flask.Response: JSON response with module statistics
+            - int: HTTP status code
+                - 200: Success
+                - 404: No students registered for module
+                - 500: Server error
+    
+    Example Response:
+        {
+            "module_id": "MOD101",
+            "class_average_grade": 78.5,
+            "submission_rate": 92.3,
+            "attendance_rate": 87.5,
+            "total_students": 45,
+            "total_assignments": 8
+        }
+    """
     try:
         # Get all registrations for this module
         registrations = ModuleRegistration.query.filter_by(module_id=module_id).all()
@@ -52,7 +85,32 @@ def get_module_academic_report(module_id):
         return jsonify({"error": str(e)}), 500
 
 def get_student_academic_report(student_id):
-    """Get academic report for a specific student."""
+    """
+    Generate comprehensive academic report for a specific student.
+    
+    Retrieves all grades, attendance records, and enrollment information
+    for the specified student.
+    
+    Args:
+        student_id (str): The unique identifier of the student.
+    
+    Returns:
+        tuple: A tuple containing:
+            - flask.Response: JSON response with student academic data
+            - int: HTTP status code
+                - 200: Success
+                - 404: Student not found
+                - 500: Server error
+    
+    Example Response:
+        {
+            "student_id": "S001",
+            "name": "John Doe",
+            "grades": [...],
+            "attendance": [...],
+            "modules_enrolled": 4
+        }
+    """
     try:
         student = db.session.get(Student, student_id)
         if not student:
@@ -101,8 +159,43 @@ def get_student_academic_report(student_id):
 
 def get_early_warning():
     """
-    Get early warning report for students with high stress levels (4-5) or low sleep hours (< 5).
-    Returns counts and detailed information for each affected student.
+    Generate early warning report for at-risk students.
+    
+    Identifies students with concerning wellbeing indicators based on their
+    most recent survey responses. Flags students with high stress (≥4) or
+    insufficient sleep (<5 hours).
+    
+    Returns:
+        tuple: A tuple containing:
+            - flask.Response: JSON response with at-risk student lists
+            - int: HTTP status code
+                - 200: Success
+                - 500: Server error
+    
+    Example Response:
+        {
+            "high_stress_students": {
+                "count": 12,
+                "students": [
+                    {
+                        "student_id": "S001",
+                        "name": "John Doe",
+                        "email": "john@example.com",
+                        "stress_level": 5,
+                        "sleep_hours": 6.5,
+                        "week_number": 8
+                    }
+                ]
+            },
+            "low_sleep_students": {
+                "count": 8,
+                "students": [...]
+            }
+        }
+    
+    Note:
+        Uses the most recent survey submission for each student across all
+        their module registrations.
     """
     try:
         # Get all students with their registrations
@@ -162,8 +255,36 @@ def get_early_warning():
 
 def get_weekly_report():
     """
-    Get weekly report with average stress level and sleep hours, 
-    comparing current week with previous week.
+    Generate weekly wellbeing trend report.
+    
+    Calculates average stress levels and sleep hours for the current week
+    and compares them with the previous week to identify trends.
+    
+    Returns:
+        tuple: A tuple containing:
+            - flask.Response: JSON response with weekly statistics
+            - int: HTTP status code
+                - 200: Success
+                - 404: No survey data available
+                - 500: Server error
+    
+    Example Response:
+        {
+            "current_week": 8,
+            "previous_week": 7,
+            "stress_level": {
+                "current_week_average": 3.2,
+                "previous_week_average": 2.8,
+                "change": 0.4,
+                "change_description": "Increased"
+            },
+            "sleep_hours": {
+                "current_week_average": 7.1,
+                "previous_week_average": 7.5,
+                "change": -0.4,
+                "change_description": "Decreased"
+            }
+        }
     """
     try:
         # Get the latest week number from all surveys
@@ -227,7 +348,20 @@ def get_weekly_report():
         return jsonify({"error": str(e)}), 500
 
 def _get_change_description(change, is_sleep=False):
-    """Helper function to describe the change."""
+    """
+    Generate human-readable description of metric changes.
+    
+    Helper function to convert numeric changes into descriptive text.
+    
+    Args:
+        change (float): The numeric change value (can be positive, negative, or zero).
+        is_sleep (bool): Whether the metric is sleep-related (currently unused,
+            reserved for future sleep-specific descriptions).
+    
+    Returns:
+        str: Description of the change ("Increased", "Decreased", or "No change").
+        None: If change is None.
+    """
     if change is None:
         return None
     

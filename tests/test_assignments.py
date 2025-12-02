@@ -1,11 +1,21 @@
 """
-TDD Tests for Academic Assignments API
-Following TDD: Write tests FIRST, then implement to make them pass.
+TDD Tests for Academic Assignments API.
 
-Test Cases:
-1. POST /academic/assignments - Create assignment
-2. PUT /academic/assignments/{id} - Update assignment
-3. DELETE /academic/assignments/{id} - Delete assignment
+This module tests assignment CRUD operations following Test-Driven Development
+principles. Tests verify assignment creation, updates, deletion, and error
+handling.
+
+Test Coverage:
+    - Assignment creation (POST /academic/assignments)
+    - Assignment updates (PUT /academic/assignments/{id})
+    - Assignment deletion (DELETE /academic/assignments/{id})
+    - Input validation and error handling
+    - Foreign key constraint validation
+
+Following TDD Cycle:
+    1. RED: Write test defining expected behavior
+    2. GREEN: Implement endpoint to pass test
+    3. REFACTOR: Optimize while maintaining test success
 """
 import pytest
 import json
@@ -14,12 +24,21 @@ from datetime import timezone
 
 
 class TestCreateAssignment:
-    """Test suite for creating assignments."""
+    """
+    Test suite for assignment creation operations.
+    
+    Tests the POST /academic/assignments endpoint for creating new
+    assignments with proper validation.
+    """
     
     def test_create_assignment_success(self, client, sample_survey_data): 
         """
-        Test that POST /academic/assignments creates a new assignment.
-        TDD: This test will fail until we implement the endpoint.
+        Test successful creation of a new assignment.
+        
+        Verifies that a valid assignment can be created and returns
+        a 201 Created status with the assignment data.
+        
+        TDD Phase: GREEN - Basic creation functionality.
         """
         assignment_data = {
             "assignment_id": "A999",
@@ -45,8 +64,12 @@ class TestCreateAssignment:
     
     def test_create_assignment_missing_fields(self, client, sample_survey_data):
         """
-        Test that missing required fields returns 400.
-        TDD: Validation error handling.
+        Test validation of required fields.
+        
+        Verifies that attempting to create an assignment without required
+        fields returns a 400 Bad Request status.
+        
+        TDD Phase: RED/GREEN - Tests input validation.
         """
         assignment_data = {
             "module_id": "M001"
@@ -85,11 +108,21 @@ class TestCreateAssignment:
 
 
 class TestUpdateAssignment:
-    """Test suite for updating assignments."""
+    """
+    Test suite for assignment update operations.
+    
+    Tests the PUT /academic/assignments/{id} endpoint for updating
+    existing assignments.
+    """
     
     def test_update_assignment_success(self, client, sample_survey_data):
         """
-        Test that PUT /academic/assignments/{id} updates an assignment.
+        Test successful update of assignment information.
+        
+        Verifies that assignment fields can be updated and the response
+        contains the updated values.
+        
+        TDD Phase: GREEN - Basic update functionality.
         """
         assignment_data = {
         "assignment_id": "A001",
@@ -135,11 +168,21 @@ class TestUpdateAssignment:
 
 
 class TestDeleteAssignment:
-    """Test suite for deleting assignments."""
+    """
+    Test suite for assignment deletion operations.
+    
+    Tests the DELETE /academic/assignments/{id} endpoint for removing
+    assignments from the system.
+    """
     
     def test_delete_assignment_success(self, client, sample_survey_data):
         """
-        Test that DELETE /academic/assignments/{id} deletes an assignment.
+        Test successful deletion of an assignment.
+        
+        Verifies that an assignment can be deleted and a success message
+        is returned.
+        
+        TDD Phase: GREEN - Basic deletion functionality.
         """
         assignment_data = {
         "assignment_id": "A001",
@@ -167,7 +210,12 @@ class TestDeleteAssignment:
     
     def test_delete_assignment_verify_deletion(self, client, sample_survey_data):
         """
-        Test that deleted assignment is actually removed.
+        Test verification of assignment deletion.
+        
+        Verifies that after deletion, the assignment no longer appears
+        in the module's assignment list.
+        
+        TDD Phase: GREEN - Tests deletion persistence.
         """
         # Delete the assignment
         client.delete("/academic/assignments/A001")
