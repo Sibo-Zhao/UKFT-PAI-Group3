@@ -1,6 +1,13 @@
 """
-Courses and Modules routes blueprint.
-Flask blueprint for course, module, and assignment endpoints.
+Courses and Modules Routes Blueprint.
+
+This module defines Flask routes for course and module management operations
+including course listing, module retrieval, and assignment queries.
+
+Endpoints:
+    GET /courses - List all courses
+    GET /courses/<course_id>/modules - List modules for a course
+    GET /modules/<module_id>/assignments - List assignments for a module
 """
 from flask import Blueprint
 from app.controllers import course_controller

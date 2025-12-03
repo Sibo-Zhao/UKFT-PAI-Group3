@@ -1,5 +1,25 @@
 """
-Marshmallow schemas for serialization and validation.
+Marshmallow Schemas for Serialization and Validation.
+
+This module defines Marshmallow schemas for serializing database models
+to JSON and validating incoming request data. Schemas ensure consistent
+API responses and enforce data validation rules.
+
+Schemas:
+    StudentSchema: Student model serialization
+    WeeklySurveySchema: Weekly survey with validation (stress 1-5, sleep 0-24)
+    CourseSchema: Course model serialization
+    ModuleSchema: Module model serialization
+    AssignmentSchema: Assignment model serialization
+    SubmissionSchema: Submission model serialization
+    AttendanceSchema: Attendance model serialization
+
+Usage:
+    # Single object
+    student_schema.dump(student_obj)
+    
+    # Multiple objects
+    students_schema.dump(student_list)
 """
 from flask_marshmallow import Marshmallow
 from marshmallow import fields, validate

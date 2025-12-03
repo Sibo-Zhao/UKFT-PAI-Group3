@@ -1,11 +1,51 @@
+"""
+Assignment Controller Module.
+
+This module handles CRUD operations for academic assignments including
+creation, updates, and deletion of assignment records.
+"""
 from flask import jsonify
 from app.models import Assignment, Module, db
 from app.views.schemas import assignment_schema
 from datetime import datetime
 
+
 def create_assignment(assignment_data):
     """
-    Create a new assignment.
+    Create a new assignment in the database.
+    
+    Validates that the module exists and the assignment ID is unique before
+    creating the new assignment record.
+    
+    Args:
+        assignment_data (dict): Dictionary containing assignment information.
+            Required keys:
+                - assignment_id (str): Unique assignment identifier
+                - module_id (str): ID of the module this assignment belongs to
+                - title (str): Assignment title
+                - due_date (str): ISO format datetime string
+            Optional keys:
+                - description (str): Assignment description
+                - max_score (int): Maximum achievable score (default: 100)
+                - weightage_percent (float): Percentage weight in final grade
+    
+    Returns:
+        tuple: A tuple containing:
+            - flask.Response: JSON response with created assignment
+            - int: HTTP status code
+                - 201: Assignment created successfully
+                - 400: Missing required fields or assignment ID already exists
+                - 404: Module not found
+                - 500: Server error
+    
+    Example:
+        >>> create_assignment({
+        ...     "assignment_id": "A001",
+        ...     "module_id": "MOD101",
+        ...     "title": "Midterm Exam",
+        ...     "due_date": "2025-12-01T00:00:00Z",
+        ...     "max_score": 100
+        ... })
     """
     try:
         # Check if module exists
@@ -45,7 +85,28 @@ def create_assignment(assignment_data):
 
 def update_assignment(assignment_id, update_data):
     """
-    Update an existing assignment.
+    Update an existing assignment's information.
+    
+    Allows partial updates - only provided fields will be modified.
+    
+    Args:
+        assignment_id (str): The unique identifier of the assignment to update.
+        update_data (dict): Dictionary containing fields to update.
+            Allowed keys:
+                - title (str): New assignment title
+                - description (str): New description
+                - due_date (str): New due date (ISO format)
+                - max_score (int): New maximum score
+                - weightage_percent (float): New weightage percentage
+    
+    Returns:
+        tuple: A tuple containing:
+            - flask.Response: JSON response with updated assignment
+            - int: HTTP status code
+                - 200: Update successful
+                - 400: Invalid data format
+                - 404: Assignment not found
+                - 500: Server error
     """
     try:
         assignment = db.session.get(Assignment, assignment_id)
@@ -77,7 +138,21 @@ def update_assignment(assignment_id, update_data):
 
 def delete_assignment(assignment_id):
     """
-    Delete an assignment.
+    Delete an assignment from the database.
+    
+    Permanently removes the assignment record. Related submissions will be
+    handled according to the database cascade rules.
+    
+    Args:
+        assignment_id (str): The unique identifier of the assignment to delete.
+    
+    Returns:
+        tuple: A tuple containing:
+            - flask.Response: JSON response with success message
+            - int: HTTP status code
+                - 200: Deletion successful
+                - 404: Assignment not found
+                - 500: Server error
     """
     try:
         assignment = db.session.get(Assignment, assignment_id)

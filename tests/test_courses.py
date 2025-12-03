@@ -1,23 +1,42 @@
 """
-TDD Tests for Courses & Modules API
-Following TDD: Write tests FIRST, then implement to make them pass.
+TDD Tests for Courses & Modules API.
 
-Test Cases:
-1. GET /courses - Returns all courses
-2. GET /courses/{course_id}/modules - Returns modules for a course
-3. GET /modules/{module_id}/assignments - Returns assignments for a module
+This module tests course and module management endpoints following Test-Driven
+Development principles. Tests verify course retrieval, module listing, and
+assignment queries.
+
+Test Coverage:
+    - Course listing (GET /courses)
+    - Module retrieval by course (GET /courses/{course_id}/modules)
+    - Assignment retrieval by module (GET /modules/{module_id}/assignments)
+    - JSON response structure validation
+    - Data type validation
+    - Edge case handling
+
+Following TDD Cycle:
+    1. RED: Write test defining expected behavior
+    2. GREEN: Implement endpoint to pass test
+    3. REFACTOR: Optimize while maintaining test success
 """
 import pytest
 import json
 
 
 class TestCoursesEndpoint:
-    """Test suite for the courses GET endpoint."""
+    """
+    Test suite for course listing endpoint.
+    
+    Tests the GET /courses endpoint for retrieving all courses in the system.
+    """
     
     def test_get_all_courses_success(self, client, sample_survey_data):
         """
-        Test that GET /courses returns 200 OK and a list of courses.
-        TDD: This test will fail until we implement the endpoint.
+        Test successful retrieval of all courses.
+        
+        Verifies that the endpoint returns a 200 status and a list of
+        course objects.
+        
+        TDD Phase: GREEN - Basic endpoint functionality.
         """
         response = client.get("/courses")
         
@@ -28,8 +47,12 @@ class TestCoursesEndpoint:
     
     def test_get_courses_json_structure(self, client, sample_survey_data):
         """
-        Test that each course object has the correct JSON structure.
-        TDD: Defines the expected response schema.
+        Test course response JSON structure.
+        
+        Verifies that each course object contains all required fields
+        with correct naming.
+        
+        TDD Phase: RED - Defines expected API contract.
         """
         response = client.get("/courses")
         courses = json.loads(response.data)
@@ -71,12 +94,20 @@ class TestCoursesEndpoint:
 
 
 class TestCourseModulesEndpoint:
-    """Test suite for getting modules by course ID."""
+    """
+    Test suite for module retrieval by course.
+    
+    Tests the GET /courses/{course_id}/modules endpoint for retrieving
+    all modules associated with a specific course.
+    """
     
     def test_get_course_modules_success(self, client, sample_survey_data):
         """
-        Test that GET /courses/{course_id}/modules returns modules.
-        TDD: This test will fail until we implement the endpoint.
+        Test successful retrieval of course modules.
+        
+        Verifies that the endpoint returns modules for a valid course ID.
+        
+        TDD Phase: GREEN - Basic module listing functionality.
         """
         response = client.get("/courses/C001/modules")
         
@@ -126,12 +157,20 @@ class TestCourseModulesEndpoint:
 
 
 class TestModuleAssignmentsEndpoint:
-    """Test suite for getting assignments by module ID."""
+    """
+    Test suite for assignment retrieval by module.
+    
+    Tests the GET /modules/{module_id}/assignments endpoint for retrieving
+    all assignments associated with a specific module.
+    """
     
     def test_get_module_assignments_success(self, client, sample_survey_data):
         """
-        Test that GET /modules/{module_id}/assignments returns assignments.
-        TDD: This test will fail until we implement the endpoint.
+        Test successful retrieval of module assignments.
+        
+        Verifies that the endpoint returns assignments for a valid module ID.
+        
+        TDD Phase: GREEN - Basic assignment listing functionality.
         """
         response = client.get("/modules/M001/assignments")
         

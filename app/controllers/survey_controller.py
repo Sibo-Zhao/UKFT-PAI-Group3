@@ -1,9 +1,38 @@
+"""
+Survey Controller Module.
+
+This module handles operations related to weekly wellbeing surveys including
+retrieval, bulk uploads, and deletion of survey data.
+"""
 from flask import jsonify
 from app.models import WeeklySurvey, ModuleRegistration, db
 from app.views.schemas import weekly_surveys_schema
 
+
 def delete_student_surveys(student_id):
-    """Delete all survey data for a specific student."""
+    """
+    Delete all survey data for a specific student.
+    
+    Removes all weekly survey records associated with the student's module
+    registrations. This is useful for data cleanup or GDPR compliance.
+    
+    Args:
+        student_id (str): The unique identifier of the student.
+    
+    Returns:
+        tuple: A tuple containing:
+            - flask.Response: JSON response with deletion summary
+            - int: HTTP status code
+                - 200: Deletion successful
+                - 404: Student not found or has no registrations
+                - 500: Server error
+    
+    Example Response:
+        {
+            "message": "Deleted 12 survey records for student S001",
+            "deleted_count": 12
+        }
+    """
     try:
         # Get all registrations for this student
         registrations = ModuleRegistration.query.filter_by(student_id=student_id).all()
@@ -29,7 +58,30 @@ def delete_student_surveys(student_id):
 
 def get_all_surveys():
     """
-    Get all weekly survey records.
+    Retrieve all weekly survey records from the database.
+    
+    Fetches all survey responses and serializes them using the survey schema.
+    
+    Returns:
+        tuple: A tuple containing:
+            - flask.Response: JSON response with list of surveys
+            - int: HTTP status code
+                - 200: Success
+                - 500: Server error
+    
+    Example Response:
+        [
+            {
+                "survey_id": 1,
+                "registration_id": 1,
+                "week_number": 1,
+                "submitted_at": "2025-01-15T10:30:00",
+                "stress_level": 3,
+                "sleep_hours": 7.5,
+                "social_connection_score": 4,
+                "comments": "Feeling good this week"
+            }
+        ]
     """
     try:
         surveys = WeeklySurvey.query.all()
@@ -40,7 +92,43 @@ def get_all_surveys():
 
 def bulk_upload_surveys(data):
     """
-    Bulk upload survey records.
+    Bulk upload multiple survey records at once.
+    
+    Validates each survey record and creates entries in the database.
+    Invalid registrations are skipped without failing the entire operation.
+    
+    Args:
+        data (dict): Request data containing survey records.
+            Expected structure:
+                {
+                    "surveys": [
+                        {
+                            "registration_id": int,
+                            "week_number": int,
+                            "stress_level": int (1-5),
+                            "sleep_hours": float,
+                            "social_connection_score": int (1-5),
+                            "comments": str (optional)
+                        }
+                    ]
+                }
+    
+    Returns:
+        tuple: A tuple containing:
+            - flask.Response: JSON response with upload summary
+            - int: HTTP status code
+                - 201: Upload successful
+                - 400: No surveys provided
+                - 500: Server error
+    
+    Example Response:
+        {
+            "message": "Successfully created 15 survey records",
+            "count": 15
+        }
+    
+    Note:
+        Surveys with invalid registration IDs are silently skipped.
     """
     try:
         surveys = data.get('surveys', [])

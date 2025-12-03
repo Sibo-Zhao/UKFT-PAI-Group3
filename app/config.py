@@ -1,3 +1,23 @@
+"""
+Application Configuration Module.
+
+This module handles application configuration including database connection
+settings, environment variable loading, and connection validation.
+
+Classes:
+    Config: Base configuration with database settings and validation.
+    TestConfig: Testing-specific configuration.
+    DatabaseConnector: Utility for validating database connectivity.
+
+Environment Variables Required:
+    DB_USER: Database username
+    DB_PASSWORD: Database password
+    DB_HOST: Database host address
+    DB_PORT: Database port number
+    DB_NAME: Database name
+    DB_CHARSET: Character set (optional, default: utf8mb4)
+    SECRET_KEY: Flask secret key (optional, default: dev-key-change-in-prod)
+"""
 import os
 import sys
 from dotenv import load_dotenv

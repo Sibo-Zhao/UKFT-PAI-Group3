@@ -1,3 +1,13 @@
+"""
+Reports Routes Blueprint.
+
+This module defines Flask routes for generating analytical reports including
+module performance reports and student academic reports.
+
+Endpoints:
+    GET /reports/module/<module_id>/academic - Module academic report
+    GET /reports/student/<student_id>/academic - Student academic report
+"""
 from flask import Blueprint
 from app.controllers import reports_controller
 
