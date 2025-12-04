@@ -4,7 +4,6 @@ University Wellbeing API - Flask application setup.
 """
 from flask import Flask, jsonify
 from flask_cors import CORS
-from flask_wtf.csrf import CSRFProtect
 from app.config import Config
 from app.models import db
 from app.views.schemas import ma
@@ -16,8 +15,6 @@ from app.routes.students import students_bp
 from app.routes.reports import reports_bp
 from app.routes.auth import auth_bp
 from app.utils.logging_config import setup_logging
-
-csrf = CSRFProtect()
 
 def create_app(config_class=Config):
     """
@@ -43,13 +40,8 @@ def create_app(config_class=Config):
     db.init_app(app)
     ma.init_app(app)
     
-    # Configure CORS with credentials support for CSRF
-    CORS(app, supports_credentials=True)
-    
-    # Initialize CSRF protection
-    # Note: For API-only applications, you may want to disable CSRF for certain routes
-    # or use token-based authentication instead
-    csrf.init_app(app)
+    # Configure CORS for API access
+    CORS(app)
 
     # 6. Register Blueprints
     app.register_blueprint(surveys_bp)
