@@ -5,6 +5,78 @@ let currentUser = null;
 let students = [];
 let courses = [];
 let currentPage = 'login';
+let attendanceRecords = [];
+
+// Cached survey records for visual explorer
+let surveyRecords = [];
+
+// Config for the visual explorer parameters (similar idea to app.py)
+const VIZ_PARAM_CONFIG = {
+  week: {
+    label: 'Week',
+    // backend field: week_number from surveys / analytics
+    value: r => r.week_number
+  },
+  stress_level: {
+    label: 'Stress level (1–5)',
+    value: r => r.stress_level
+  },
+  sleep_hours: {
+    label: 'Sleep hours',
+    value: r => r.sleep_hours
+  },
+  social_connection_score: {
+    label: 'Social connection (1–5)',
+    value: r => r.social_connection_score
+  },
+  grade_achieved: {
+    label: 'Grade %',
+    value: r => r.grade_achieved
+  },
+  attendance_percent: {
+    label: 'Attendance %',
+    value: r => r.attendance_percent
+  },
+  submissions_on_time: {
+    label: 'Submissions on time',
+    value: r => r.submissions_on_time
+  },
+  submissions_late: {
+    label: 'Submissions late',
+    value: r => r.submissions_late
+  }
+};
+
+const PLOT_RULES = {
+  "week|stress_level": "line",
+  "week|attendance_percent": "line",
+  "week|grade_achieved": "line",
+  "sleep_hours|stress_level": "scatter",
+  "attendance_percent|grade_achieved": "bubble",
+  "stress_level|grade_achieved": "box",
+  "week|submissions_on_time": "bar",
+  "week|submissions_late": "area",
+  "attendance_percent|sleep_hours": "density",
+  "stress_level|sleep_hours": "violin"
+};
+
+function inferPlotType(xKey, yKey) {
+  const key = `${xKey}|${yKey}`;
+  const reverseKey = `${yKey}|${xKey}`;
+  return PLOT_RULES[key] || PLOT_RULES[reverseKey] || "scatter";
+}
+
+// Backend API base URL
+const API_BASE_URL = 'http://localhost:5001'; // change if your Flask port is different
+
+async function apiGet(path) {
+  const res = await fetch(`${API_BASE_URL}${path}`);
+  if (!res.ok) {
+    console.error('API GET failed:', path, res.status);
+    throw new Error(`API error ${res.status}`);
+  }
+  return res.json();
+}
 
 // Title configuration (can be overridden via localStorage)
 // Reason: centralize sidebar title management and prevent Settings page from showing "settings"
@@ -32,7 +104,7 @@ const mockCourses = [
 ];
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   initializeApp();
 });
 
@@ -58,16 +130,18 @@ function initializeApp() {
   setupEventListeners();
   applyTitleConfig();
   loadStudents();
+  loadCoursesIntoDropdown();
   loadCourses();
 
   if (pageName === 'wellbeing.html') {
     loadWellbeingDashboard();
-  } else if (pageName === 'students.html') {
-    loadStudentsTable();
+    setupVisualExplorer();
+  } else if (pageName === 'student_profile.html') {
+    loadStudentProfilePage();
   } else if (pageName === 'course.html') {
     loadCourseDashboard();
   } else if (pageName === 'attendance.html') {
-    loadCourseWeeklyReport();
+    initAttendancePage();
   }
 }
 
@@ -132,26 +206,57 @@ function setupEventListeners() {
   if (sleepFilter) {
     sleepFilter.addEventListener('change', filterStudents);
   }
+
+  const addStudentForm = document.getElementById("addStudentForm");
+  if (addStudentForm) {
+    addStudentForm.addEventListener("submit", handleAddStudent);
+  }
+
+  const updateForm = document.getElementById('updateStudentForm');
+  if (updateForm) {
+    updateForm.addEventListener('submit', handleUpdateStudentSubmit);
+  }
+
+
 }
 
 // Authentication functions
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
-  
+
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
 
-  // Simple fake login logic
-  if (username === 'wellbeing') {
-    currentUser = { username: 'wellbeing', role: 'wellbeing' };
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json();
+    console.log(data);
+
+    if (!res.ok) {
+      alert(data.error || 'Login failed');
+      return;
+    }
+
+    // Backend roles: "CD" (course director) and "SWO" (student wellbeing officer)
+    let role = 'course';
+    if (data.role === 'SWO') role = 'wellbeing';
+
+    currentUser = { username: data.username, role };
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    showPage('wellbeing-dashboard');
-  } else if (username === 'course') {
-    currentUser = { username: 'course', role: 'course' };
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-    showPage('course-dashboard');
-  } else {
-    alert('Invalid username. Use "wellbeing" or "course" as username.');
+
+    if (role === 'wellbeing') {
+      showPage('wellbeing-dashboard');
+    } else {
+      showPage('course-dashboard');
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Unable to reach the server for login.');
   }
 }
 
@@ -182,6 +287,30 @@ function loadWellbeingDashboard() {
   generateDefaultPlot();
 }
 
+async function setupVisualExplorer() {
+  const updateBtn = document.getElementById('viz-update-btn');
+  const container = document.getElementById('plot-container');
+
+  // Not on this page
+  if (!updateBtn || !container) return;
+
+  try {
+    // Ensure we have survey data cached for plotting
+    if (!surveyRecords.length) {
+      surveyRecords = await apiGet('/api/surveys');
+    }
+
+    // Wire up the button
+    updateBtn.addEventListener('click', generatePlot);
+
+    // Draw an initial plot
+    generatePlot();
+  } catch (err) {
+    console.error('FAILED TO SETUP VISUAL EXPLORER', err);
+    container.innerHTML = '<p class="text-muted">UNABLE TO LOAD DATA FOR VISUALISATION.</p>';
+  }
+}
+
 function loadCourseDashboard() {
   loadCourseWeeklyReport();
   generateDefaultCoursePlot();
@@ -192,18 +321,71 @@ function loadStudentsTable() {
 }
 
 // Early Warning Students
-function loadEarlyWarningStudents() {
-  const earlyWarningStudents = students.filter(student => student.stress_level >= 7 || student.sleep_hours <= 5);
+// HIGH-RISK STUDENTS – use real backend data
+async function loadEarlyWarningStudents() {
   const tbody = document.getElementById('early-warning-tbody');
-  if (tbody) {
-    tbody.innerHTML = earlyWarningStudents.map(student => `
+  if (!tbody) return;
+
+  try {
+    // 1) Get current high-risk students from backend
+    //    This should return stress_level (1–5) and sleep_hours for each student
+    const data = await apiGet('/wellbeing/early-warning');
+
+    // 2) Merge high-stress + low-sleep groups and de-duplicate
+    const combined = [
+      ...(data.high_stress_students?.students || []),
+      ...(data.low_sleep_students?.students || [])
+    ];
+
+    const dedup = new Map(); // key: student_id
+    for (const s of combined) {
+      dedup.set(s.student_id, s);
+    }
+    const highRiskStudents = Array.from(dedup.values());
+
+    // 3) Build table rows using REAL stress_level and sleep_hours
+    tbody.innerHTML = highRiskStudents.map(student => {
+      const stress = student.stress_level;   // 1–5 from backend
+      const sleep = student.sleep_hours;    // hours from backend
+
+      // Map 1–5 stress scale to 1–10 for your existing risk helpers
+      const mappedStress = stress != null ? stress * 2 : 0;
+      const safeSleep = sleep != null ? sleep : 8;
+
+      return `
+        <tr>
+          <td>${student.name || `${student.first_name || ''} ${student.last_name || ''}`.trim()}</td>
+          <td>${stress != null ? stress.toFixed(1) : '–'}</td>
+          <td>${sleep != null ? sleep.toFixed(1) + 'h' : '–'}</td>
+          <td>
+            <span class="status-${getStatusLevel(mappedStress, safeSleep)}">
+              ${getStatusText(mappedStress, safeSleep)}
+            </span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // 4) If no high-risk students, show a friendly message
+    if (!highRiskStudents.length) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4" class="text-muted text-center">
+            No high-risk students detected from latest surveys.
+          </td>
+        </tr>
+      `;
+    }
+
+  } catch (err) {
+    console.error('Failed to load high-risk students', err);
+    tbody.innerHTML = `
       <tr>
-        <td>${student.name}</td>
-        <td>${student.stress_level}</td>
-        <td>${student.sleep_hours}h</td>
-        <td><span class="status-${getStatusLevel(student.stress_level, student.sleep_hours)}">${getStatusText(student.stress_level, student.sleep_hours)}</span></td>
+        <td colspan="4" class="text-muted text-center">
+          Unable to load high-risk students.
+        </td>
       </tr>
-    `).join('');
+    `;
   }
 }
 
@@ -220,29 +402,100 @@ function getStatusLevel(stress, sleep) {
 }
 
 function getStatusText(stress, sleep) {
-  if (stress >= 8 || sleep <= 4) return 'High Risk';
-  if (stress >= 6 || sleep <= 6) return 'Medium Risk';
-  return 'Low Risk';
+  if (stress >= 8 || sleep <= 4) return 'At High Risk';
+  if (stress >= 6 || sleep <= 6) return 'At Medium Risk';
+  return 'At Low Risk';
 }
 
 // Weekly Report
-function loadWeeklyReport() {
-  const summaryDiv = document.getElementById('weekly-summary');
-  if (summaryDiv) {
-    const avgStress = (students.reduce((sum, s) => sum + s.stress_level, 0) / students.length).toFixed(1);
-    const avgSleep = (students.reduce((sum, s) => sum + s.sleep_hours, 0) / students.length).toFixed(1);
-    const highRiskCount = students.filter(s => s.stress_level >= 7 || s.sleep_hours <= 5).length;
-    
-    summaryDiv.innerHTML = `
-      <p class="mb-2"><strong>Average Stress Level:</strong> ${avgStress}/10</p>
-      <p class="mb-2"><strong>Average Sleep Hours:</strong> ${avgSleep} h</p>
-      <p class="mb-0"><strong>Students at Risk:</strong> ${highRiskCount} students</p>
-    `;
-  }
+async function loadWeeklyReport() {
+  const totalStudentsEl = document.getElementById('summary-total-students');
+  const avgStressEl = document.getElementById('summary-avg-stress');
+  const avgSleepEl = document.getElementById('summary-avg-sleep');
+  const totalSubjectsEl = document.getElementById('summary-total-subjects');
 
-  // Create stress level chart
-  createStressChart();
-  createSleepChart();
+  // If we're not on the wellbeing page, bail out
+  if (!totalStudentsEl || !avgStressEl || !avgSleepEl || !totalSubjectsEl) return;
+
+  try {
+    // Load everything we need in parallel:
+    const [studentsData, weeklyData, coursesData] = await Promise.all([
+      apiGet('/students'),          // for total students
+      apiGet('/wellbeing/weekly'),  // for avg stress & sleep
+      apiGet('/courses')            // use courses as "subjects"
+    ]);
+
+    const totalStudents = Array.isArray(studentsData) ? studentsData.length : 0;
+    const totalSubjects = Array.isArray(coursesData) ? coursesData.length : 0;
+
+    const stress = weeklyData?.stress_level || {};
+    const sleep = weeklyData?.sleep_hours || {};
+
+    const avgStress = stress.current_week_average ?? null;
+    const avgSleep = sleep.current_week_average ?? null;
+
+    totalStudentsEl.textContent = totalStudents;
+    totalSubjectsEl.textContent = totalSubjects;
+
+    avgStressEl.textContent = avgStress != null ? avgStress.toFixed(2) : 'N/A';
+    avgSleepEl.textContent = avgSleep != null ? avgSleep.toFixed(2) : 'N/A';
+  } catch (err) {
+    console.error('Failed to load summary tiles', err);
+    totalStudentsEl.textContent = '–';
+    totalSubjectsEl.textContent = '–';
+    avgStressEl.textContent = 'N/A';
+    avgSleepEl.textContent = 'N/A';
+  }
+}
+
+async function handleUpdateStudentSubmit(e) {
+  e.preventDefault();
+
+  const student_id = document.getElementById('update_student_id').value;
+
+  const body = {
+    first_name: document.getElementById('update_first_name').value.trim(),
+    last_name: document.getElementById('update_last_name').value.trim(),
+    email: document.getElementById('update_email').value.trim(),
+    enrolled_year: Number(document.getElementById('update_enrolled_year').value),
+    current_course_id: document.getElementById('update_course_id').value
+  };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/students/${student_id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showNotification(data.error || 'Failed to update student', 'danger');
+      return;
+    }
+
+    // Update local array so UI reflects changes
+    const idx = students.findIndex(s => String(s.student_id) === String(student_id));
+    if (idx !== -1) {
+      students[idx] = {
+        ...students[idx],
+        ...body,
+        name: `${body.first_name} ${body.last_name}`
+      };
+    }
+
+    renderStudentsTable();
+
+    // Close modal
+    const modalEl = document.getElementById('updateStudentModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+
+    showNotification('Student updated successfully', 'success');
+  } catch (err) {
+    console.error(err);
+    showNotification('Error updating student', 'danger');
+  }
 }
 
 function loadCourseWeeklyReport() {
@@ -269,25 +522,71 @@ function loadCourseWeeklyReport() {
 }
 
 // Chart creation functions
-function createStressChart() {
-  const stressData = students.map(s => s.stress_level);
-  const segments = [
-    stressData.filter(s => s <= 3).length,
-    stressData.filter(s => s > 3 && s <= 6).length,
-    stressData.filter(s => s > 6).length
-  ];
-  renderGlassPie('stress-chart', segments, ['#27ae60', '#f39c12', '#e74c3c'], ['Low (1-3)', 'Medium (4-6)', 'High (7-10)']);
+async function createStressChart() {
+  const containerId = 'stress-chart';
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  try {
+    const surveys = await apiGet('/api/surveys');
+    if (!surveys.length) {
+      el.innerHTML = '<p class="text-muted small mb-0">No survey data yet.</p>';
+      return;
+    }
+
+    const stressData = surveys.map(s => s.stress_level); // 1–5
+
+    const segments = [
+      stressData.filter(s => s <= 2).length,        // Low
+      stressData.filter(s => s === 3).length,       // Medium
+      stressData.filter(s => s >= 4).length         // High
+    ];
+
+    renderGlassPie(
+      containerId,
+      segments,
+      ['#27ae60', '#f39c12', '#e74c3c'],
+      ['Low (1–2)', 'Medium (3)', 'High (4–5)']
+    );
+  } catch (e) {
+    console.error(e);
+    el.innerHTML = '<p class="text-muted small mb-0">Unable to load stress chart.</p>';
+  }
 }
 
-function createSleepChart() {
-  const sleepData = students.map(s => s.sleep_hours);
-  const segments = [
-    sleepData.filter(s => s <= 4).length,
-    sleepData.filter(s => s > 4 && s <= 7).length,
-    sleepData.filter(s => s > 7).length
-  ];
-  renderGlassPie('sleep-chart', segments, ['#e74c3c', '#f39c12', '#27ae60'], ['Poor (0-4h)', 'Average (5-7h)', 'Good (8+h)']);
+
+async function createSleepChart() {
+  const containerId = 'sleep-chart';
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  try {
+    const surveys = await apiGet('/api/surveys');
+    if (!surveys.length) {
+      el.innerHTML = '<p class="text-muted small mb-0">No survey data yet.</p>';
+      return;
+    }
+
+    const sleepData = surveys.map(s => s.sleep_hours);
+
+    const segments = [
+      sleepData.filter(s => s <= 4).length,              // Poor
+      sleepData.filter(s => s > 4 && s <= 7).length,     // Average
+      sleepData.filter(s => s > 7).length                // Good
+    ];
+
+    renderGlassPie(
+      containerId,
+      segments,
+      ['#e74c3c', '#f39c12', '#27ae60'],
+      ['Poor (0–4h)', 'Average (5–7h)', 'Good (8+h)']
+    );
+  } catch (e) {
+    console.error(e);
+    el.innerHTML = '<p class="text-muted small mb-0">Unable to load sleep chart.</p>';
+  }
 }
+
 
 function renderConicPie(id, segments, colors) {
   const total = segments.reduce((a, b) => a + b, 0) || 1;
@@ -322,7 +621,7 @@ function renderGlassPie(id, segments, colors, labels) {
   svg.style.borderRadius = '50%';
   el.appendChild(svg);
 
-  const tip = (function ensureTip(){
+  const tip = (function ensureTip() {
     let t = el.__tip;
     if (!t) {
       t = document.createElement('div');
@@ -347,7 +646,7 @@ function renderGlassPie(id, segments, colors, labels) {
     svg.appendChild(path);
 
     const percent = Math.round((value / total) * 1000) / 10; // one decimal
-    const label = labels[i] || `Segment ${i+1}`;
+    const label = labels[i] || `Segment ${i + 1}`;
     const show = (evt) => {
       tip.innerHTML = `${label}: ${percent}% (${value})`;
       tip.style.display = 'block';
@@ -388,7 +687,7 @@ function createAttendanceChart() {
     margin: { l: 20, r: 20, t: 40, b: 20 }
   };
 
-  Plotly.newPlot('attendance-chart', data, layout, {responsive: true});
+  Plotly.newPlot('attendance-chart', data, layout, { responsive: true });
 }
 
 function createGradeChart() {
@@ -410,7 +709,7 @@ function createGradeChart() {
     margin: { l: 20, r: 20, t: 40, b: 20 }
   };
 
-  Plotly.newPlot('grade-chart', data, layout, {responsive: true});
+  Plotly.newPlot('grade-chart', data, layout, { responsive: true });
 }
 
 function createCourseAttendanceMini() {
@@ -437,41 +736,144 @@ function createCourseStressMini() {
 }
 
 // Plot generation functions
-function generatePlot() {
-  const xAxis = document.getElementById('x-axis-select').value;
-  const yAxis = document.getElementById('y-axis-select').value;
+async function generatePlot() {
+  const xKey = document.getElementById('x-axis-select')?.value;
+  const yKey = document.getElementById('y-axis-select')?.value;
 
-  // Generate mock data based on selections
-  const xData = generateMockData(xAxis, students.length);
-  const yData = generateMockData(yAxis, students.length);
+  const xCfg = VIZ_PARAM_CONFIG[xKey];
+  const yCfg = VIZ_PARAM_CONFIG[yKey];
+  if (!xCfg || !yCfg) return;
 
-  const trace = {
-    x: xData,
-    y: yData,
-    mode: 'markers',
-    type: 'scatter',
-    marker: {
-      size: 12,
-      color: xData.map((_, i) => i),
-      colorscale: 'Viridis',
-      showscale: true
-    },
-    text: students.map(s => s.name),
-    hovertemplate: '<b>%{text}</b><br>' + xAxis + ': %{x}<br>' + yAxis + ': %{y}<extra></extra>'
-  };
+  const rawType = inferPlotType(xKey, yKey);
+  // For cohort-level data, "line" plots look messy – treat them as scatter
+  const plotType = rawType === 'line' ? 'scatter' : rawType;
 
-  const layout = {
-    xaxis: { title: xAxis.charAt(0).toUpperCase() + xAxis.slice(1) },
-    yaxis: { title: yAxis.charAt(0).toUpperCase() + yAxis.slice(1) },
-    hovermode: 'closest',
-    margin: { t: 8, r: 20, b: 30, l: 40 },
-    height: 300,
-    plot_bgcolor: 'rgba(0,0,0,0)',
-    paper_bgcolor: 'rgba(0,0,0,0)'
-  };
+  const container = document.getElementById('plot-container');
+  if (!container) return;
 
-  Plotly.newPlot('plot-container', [trace], layout, {responsive: true});
+  try {
+    // Cache surveys in surveyRecords
+    if (!surveyRecords.length) {
+      surveyRecords = await apiGet('/api/surveys');
+    }
+
+    const records = surveyRecords;
+
+    if (!records.length) {
+      container.innerHTML = '<p class="text-muted small mb-0">No data for this selection.</p>';
+      return;
+    }
+
+    const x = records.map(xCfg.value);
+    const y = records.map(yCfg.value);
+
+    const layout = {
+      margin: { t: 30, r: 20, b: 40, l: 50 },
+      paper_bgcolor: 'rgba(0,0,0,0)',
+      plot_bgcolor: 'rgba(0,0,0,0)',
+      xaxis: { title: xCfg.label },
+      yaxis: { title: yCfg.label },
+      height: 320
+    };
+
+    let data;
+
+    switch (plotType) {
+      case 'scatter':
+        data = [{
+          x,
+          y,
+          type: 'scatter',
+          mode: 'markers',
+          hovertemplate: 'x=%{x}<br>y=%{y}<extra></extra>'
+        }];
+        break;
+
+      case 'bubble':
+        data = [{
+          x,
+          y,
+          mode: 'markers',
+          type: 'scatter',
+          marker: {
+            size: y.map(v => Math.max(10, Math.abs(v || 0) * 0.6)),
+            sizemode: 'area',
+            opacity: 0.8
+          },
+          hovertemplate: 'x=%{x}<br>y=%{y}<extra></extra>'
+        }];
+        break;
+
+      case 'box':
+        data = [{
+          x,
+          y,
+          type: 'box',
+          boxpoints: 'all',
+          jitter: 0.3,
+          pointpos: -1.5
+        }];
+        break;
+
+      case 'bar':
+        data = [{
+          x,
+          y,
+          type: 'bar',
+          hovertemplate: 'x=%{x}<br>y=%{y}<extra></extra>'
+        }];
+        break;
+
+      case 'area':
+        data = [{
+          x,
+          y,
+          type: 'scatter',
+          mode: 'lines',
+          fill: 'tozeroy',
+          hovertemplate: 'x=%{x}<br>y=%{y}<extra></extra>'
+        }];
+        break;
+
+      case 'density':
+        data = [{
+          x,
+          y,
+          type: 'histogram2dcontour',
+          contours: { coloring: 'heatmap' }
+        }];
+        layout.coloraxis = { showscale: true };
+        break;
+
+      case 'violin':
+        data = [{
+          x,
+          y,
+          type: 'violin',
+          points: 'all',
+          jitter: 0.3,
+          scalemode: 'width'
+        }];
+        break;
+
+      default:
+        // Fallback: simple scatter
+        data = [{
+          x,
+          y,
+          type: 'scatter',
+          mode: 'markers'
+        }];
+    }
+
+    Plotly.newPlot(container, data, layout, { responsive: true });
+
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = '<p class="text-muted small mb-0">Unable to load data for the plot.</p>';
+  }
 }
+
 
 function generateCoursePlot() {
   const xAxis = document.getElementById('course-x-axis-select').value;
@@ -506,7 +908,7 @@ function generateCoursePlot() {
     paper_bgcolor: 'rgba(0,0,0,0)'
   };
 
-  Plotly.newPlot('course-plot-container', [trace], layout, {responsive: true});
+  Plotly.newPlot('course-plot-container', [trace], layout, { responsive: true });
 }
 
 function generateDefaultPlot() {
@@ -546,9 +948,407 @@ function generateMockData(type, count) {
   return data;
 }
 
+function findStudentById(id) {
+  return students.find(s => String(s.id) === String(id));
+}
+
 // Student table functions
-function loadStudents() {
-  students = [...mockStudents];
+async function loadStudents() {
+  const tbody = document.getElementById('student-tbody');
+  if (tbody) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-muted py-4">
+          LOADING STUDENTS FROM THE SERVER...
+        </td>
+      </tr>`;
+  }
+  try {
+    const data = await apiGet('/students');
+    const list = Array.isArray(data) ? data : data.students;
+    students = list.map(s => ({
+      id: s.student_id,
+      student_id: s.student_id,
+      first_name: s.first_name,
+      last_name: s.last_name,
+      name: `${s.first_name} ${s.last_name}`,
+      email: s.email,
+      enrolled_year: s.enrolled_year,
+      current_course_id: s.current_course_id,
+      stress_level: null,
+      sleep_hours: null,
+      grades: null,
+      starred: false
+    }));
+
+    renderStudentsTable();
+    populateVizStudentDropdown();
+
+    students.forEach(s => fetchStudentWellbeingSummary(s));
+    students.forEach(s => fetchStudentGrades?.(s));
+
+  } catch (err) {
+    console.error(err);
+    showNotification('UNABLE TO LOAD STUDENTS FROM SERVER.', 'danger');
+  }
+}
+
+// LOAD COURSES INTO ADD-STUDENT DROPDOWN
+async function loadCoursesIntoDropdown() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/courses`);
+    const data = await res.json();
+
+    // API may return either:
+    //   [ {course_id, course_name...}, ... ]
+    // OR { courses: [ ... ] }
+    const list = Array.isArray(data) ? data : data.courses;
+
+    const sel = document.getElementById("add_course_id");
+    if (!sel) return;
+
+    sel.innerHTML = ""; // clear existing
+
+    list.forEach(c => {
+      const op = document.createElement("option");
+      op.value = c.course_id;
+      op.textContent = `${c.course_id} — ${c.course_name}`;
+      sel.appendChild(op);
+    });
+
+    // ALSO populate UPDATE form dropdown
+    const upd = document.getElementById("update_course_id");
+    if (upd) {
+      upd.innerHTML = "";
+      list.forEach(c => {
+        const op = document.createElement("option");
+        op.value = c.course_id;
+        op.textContent = `${c.course_id} — ${c.course_name}`;
+        upd.appendChild(op);
+      });
+    }
+
+  } catch (err) {
+    console.error("Failed to load courses into dropdown", err);
+  }
+}
+
+async function handleAddStudent(event) {
+  event.preventDefault();
+
+  const body = {
+    student_id: document.getElementById("add_student_id").value.trim(),
+    first_name: document.getElementById("add_first_name").value.trim(),
+    last_name: document.getElementById("add_last_name").value.trim(),
+    email: document.getElementById("add_email").value.trim(),
+    enrolled_year: parseInt(document.getElementById("add_enrolled_year").value),
+    current_course_id: document.getElementById("add_course_id").value
+  };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/students`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showNotification(data.error || "FAILED TO ADD STUDENT", "danger");
+      return;
+    }
+
+    // Use nested "student" object if present
+    const saved = data.student || data;
+
+    students.push({
+      id: saved.student_id,
+      student_id: saved.student_id,
+      first_name: saved.first_name,
+      last_name: saved.last_name,
+      name: `${saved.first_name} ${saved.last_name}`,
+      email: saved.email,
+      enrolled_year: saved.enrolled_year,
+      current_course_id: saved.current_course_id,
+      stress_level: null,
+      sleep_hours: null,
+      grades: null,
+      starred: false
+    });
+
+    renderStudentsTable();
+
+    showNotification("STUDENT ADDED SUCCESSFULLY!", "success");
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById("addStudentModal"));
+    if (modal) modal.hide();
+
+    event.target.reset();
+
+  } catch (err) {
+    console.error(err);
+    showNotification("ERROR ADDING STUDENT", "danger");
+  }
+}
+
+// Main entry for attendance.html
+async function initAttendancePage() {
+  try {
+    await populateAttendanceModules(); // fill the Module dropdown from /courses
+    await loadAttendanceRecords();     // load records from /academic/attendance
+  } catch (err) {
+    console.error('Failed to initialise attendance page', err);
+    showNotification?.('Unable to load attendance page.', 'danger');
+  }
+}
+
+// Fetch courses from backend and use them as "modules" in the dropdown
+async function populateAttendanceModules() {
+  const sel = document.getElementById('moduleSelect');
+  if (!sel) return;
+
+  try {
+    const data = await apiGet('/courses');
+    const list = Array.isArray(data) ? data : data.courses || [];
+
+    // Start with an "all" option
+    sel.innerHTML = '<option value="all">All Modules / Courses</option>';
+
+    list.forEach(c => {
+      const op = document.createElement('option');
+      // best guess: course_id & course_name from your /courses endpoint
+      op.value = c.course_id || c.id || '';
+      op.textContent = `${c.course_id || c.id} — ${c.course_name || c.name || 'Untitled course'}`;
+      sel.appendChild(op);
+    });
+
+    // Whenever module changes, reload records from server
+    sel.addEventListener('change', () => {
+      loadAttendanceRecords();
+    });
+  } catch (err) {
+    console.error('Failed to load modules/courses for attendance page', err);
+    // leave the original hard-coded options as a fallback
+  }
+}
+
+// Load attendance from /academic/attendance with optional filters
+async function loadAttendanceRecords() {
+  const tbody = document.getElementById('attendanceTableBody');
+  if (!tbody) return;
+
+  const moduleSel = document.getElementById('moduleSelect');
+  const weekSel   = document.getElementById('weekSelect');
+
+  // Build query string for backend filters
+  const params = new URLSearchParams();
+
+  if (moduleSel && moduleSel.value && moduleSel.value !== 'all') {
+    params.set('module_id', moduleSel.value);
+  }
+  if (weekSel && weekSel.value && weekSel.value !== 'all') {
+    params.set('week_number', weekSel.value);
+  }
+
+  const url = params.toString()
+    ? `/academic/attendance?${params.toString()}`
+    : '/academic/attendance';
+
+  try {
+    const data = await apiGet(url);            // returns a list from attendances_schema :contentReference[oaicite:2]{index=2}
+    attendanceRecords = Array.isArray(data) ? data : (data.attendance_records || []);
+    applyAttendanceFiltersAndRender();         // also applies client-side date filter + stats
+  } catch (err) {
+    console.error('Failed to load attendance records', err);
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-danger">
+          Unable to load attendance records from the server.
+        </td>
+      </tr>
+    `;
+  }
+}
+
+// Called from the Week / Date controls and after loading data
+function applyAttendanceFiltersAndRender() {
+  const tbody       = document.getElementById('attendanceTableBody');
+  const weekSel     = document.getElementById('weekSelect');
+  const dateInput   = document.getElementById('dateFilter');
+  const recordCount = document.getElementById('recordCount');
+
+  if (!tbody) return;
+
+  let filtered = [...attendanceRecords];
+
+  // Week filter (client-side, in addition to any server filter)
+  if (weekSel && weekSel.value && weekSel.value !== 'all') {
+    filtered = filtered.filter(r => String(r.week_number) === String(weekSel.value));
+  }
+
+  // Date filter – match YYYY-MM-DD prefix of class_date
+  if (dateInput && dateInput.value) {
+    const date = dateInput.value;
+    filtered = filtered.filter(r => (r.class_date || '').startsWith(date));
+  }
+
+  // Update stats tiles
+  const total   = filtered.length;
+  const present = filtered.filter(r => r.is_present === true || r.is_present === 1 || r.is_present === 'Y').length;
+  const absent  = total - present;
+  const rate    = total ? Math.round((present / total) * 100) : 0;
+
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+
+  setText('statTotal', total);
+  setText('statPresent', present);
+  setText('statAbsent', absent);
+  setText('statRate', rate + '%');
+
+  if (recordCount) {
+    recordCount.textContent = `Showing ${total} record${total === 1 ? '' : 's'}`;
+  }
+
+  if (!filtered.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-muted">
+          No attendance records found
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  // Helper to safely pick student id / name from schema
+  const getStudentId = r =>
+    r.student_id ||
+    (r.student && r.student.student_id) ||
+    (r.registration && r.registration.student_id) ||
+    '';
+
+  const getStudentName = r =>
+    r.student_name ||
+    (r.student && (r.student.name ||
+      `${r.student.first_name || ''} ${r.student.last_name || ''}`.trim())) ||
+    (r.registration && r.registration.student_name) ||
+    '-';
+
+  tbody.innerHTML = filtered.map(r => {
+    const statusBadge = (r.is_present === true || r.is_present === 1 || r.is_present === 'Y')
+      ? '<span class="badge bg-success">Present</span>'
+      : '<span class="badge bg-danger">Absent</span>';
+
+    const classDate = r.class_date ? String(r.class_date).substring(0, 10) : '-';
+    const reason    = (!r.is_present && r.reason_absent) ? r.reason_absent : '';
+
+    return `
+      <tr>
+        <td>${r.attendance_id || r.id || ''}</td>
+        <td>${getStudentId(r)}</td>
+        <td>${getStudentName(r)}</td>
+        <td>${r.week_number ?? ''}</td>
+        <td>${classDate}</td>
+        <td>${statusBadge}</td>
+        <td>${reason || '-'}</td>
+        <td>
+          <!-- Placeholder for future edit/delete actions -->
+          <button class="btn btn-sm btn-outline-primary" disabled title="Edit coming soon">
+            <i class="bi bi-pencil"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// Hooked from inline onchange="filterRecords()" in attendance.html
+function filterRecords() {
+  applyAttendanceFiltersAndRender();
+}
+
+// Hooked from the "Clear Filters" button
+function clearFilters() {
+  const weekSel   = document.getElementById('weekSelect');
+  const dateInput = document.getElementById('dateFilter');
+
+  if (weekSel) weekSel.value = 'all';
+  if (dateInput) dateInput.value = '';
+
+  // Reload from server to clear any backend week/module filters too
+  loadAttendanceRecords();
+}
+
+function populateVizStudentDropdown() {
+  const sel = document.getElementById('viz-student-select');
+  if (!sel) return;
+
+  // Reset options
+  sel.innerHTML = '<option value="all">All Students</option>';
+
+  students.forEach(s => {
+    const option = document.createElement('option');
+    option.value = s.student_id;           // use backend id
+    option.textContent = s.name;           // "First Last"
+    sel.appendChild(option);
+  });
+}
+
+
+async function fetchStudentWellbeingSummary(student) {
+  try {
+    const data = await apiGet(`/students/${student.student_id}/wellbeing_trends`);
+    if (data && data.averages) {
+      student.stress_level = data.averages.stress_level ?? null;
+      student.sleep_hours = data.averages.sleep_hours ?? null;
+      // Re-render to show updated badges
+      renderStudentsTable();
+    }
+  } catch (err) {
+    console.error(`Failed to load wellbeing for ${student.student_id}`, err);
+  }
+}
+
+async function fetchStudentGrades(student) {
+  try {
+    // Call backend: /academic/submissions?student_id=S001
+    const params = new URLSearchParams({ student_id: student.student_id });
+    const submissions = await apiGet(`/academic/submissions?${params.toString()}`);
+
+    if (!Array.isArray(submissions) || !submissions.length) {
+      student.grades = null;
+      return;
+    }
+
+    // Keep only graded submissions and map to a simple display value
+    student.grades = submissions
+      .filter(sub => sub.grade_achieved != null)
+      .map(sub => sub.grade_achieved);         // or `${sub.assignment_id}: ${sub.grade_achieved}`
+
+    // Re-render table to show updated grades
+    renderStudentsTable();
+  } catch (err) {
+    console.error(`Failed to load grades for ${student.student_id}`, err);
+  }
+}
+
+
+async function fetchStudentAcademicSummary(student) {
+  try {
+    const data = await apiGet(`/reports/student/${student.student_id}/academic`);
+
+    // Example structure — adjust to match your backend's exact response
+    student.grades = data.grades || null;
+
+    renderStudentsTable();
+  } catch (err) {
+    console.error(`Failed to load academic info for ${student.student_id}`, err);
+  }
 }
 
 function loadCourses() {
@@ -557,96 +1357,136 @@ function loadCourses() {
 
 function renderStudentsTable() {
   const tbody = document.getElementById('student-tbody');
-  if (tbody) {
-    tbody.innerHTML = students.map(student => `
+  if (!tbody) return;
+
+  tbody.innerHTML = students.map(student => {
+    const stress = student.stress_level;
+    const sleep = student.sleep_hours;
+
+    const stressBadge = stress != null
+      ? `<span class="badge ${getStressLevelClass(stress)}">${stress.toFixed(1)}</span>`
+      : '<span class="badge bg-secondary">N/A</span>';
+
+    const sleepCell = sleep != null
+      ? (sleep <= 5
+        ? `<span class="badge bg-danger">${sleep.toFixed(1)}h</span>`
+        : `${sleep.toFixed(1)}h`)
+      : 'N/A';
+
+    return `
       <tr>
         <td>${student.name}</td>
-        <td><span class="badge ${getStressLevelClass(student.stress_level)}">${student.stress_level}</span></td>
-        <td>${parseFloat(student.sleep_hours) <= 5 ? `<span class="badge bg-danger">${student.sleep_hours}h</span>` : `${student.sleep_hours}h`}</td>
+        <td>${stressBadge}</td>
+        <td>${sleepCell}</td>
         <td>${student.grades ? student.grades.join(', ') : 'N/A'}</td>
         <td>
-          <button class="btn btn-sm btn-outline-primary me-1" onclick="editStudent(${student.id})">
+          <button class="btn btn-sm btn-outline-primary me-1" onclick="openUpdateModal('${student.id}')">
             <i class="bi bi-pencil"></i>
           </button>
-          <button class="btn btn-sm btn-outline-danger me-1" onclick="deleteStudent(${student.id})">
+          <button class="btn btn-sm btn-outline-danger me-1" onclick="deleteStudent('${student.id}')">
             <i class="bi bi-trash"></i>
           </button>
-          <button class="btn btn-sm btn-outline-warning me-1" onclick="toggleStar(${student.id})">
+          <button class="btn btn-sm btn-outline-warning me-1" onclick="toggleStar('${student.id}')">
             <i class="bi ${student.starred ? 'bi-star-fill' : 'bi-star'}"></i>
           </button>
-          <button class="btn btn-sm btn-outline-info" onclick="trackStudent(${student.id})">
-            <i class="bi bi-graph-up"></i>
+          <button class="btn btn-sm btn-outline-info" onclick="viewStudentProfile('${student.id}')">
+          <i class="bi bi-graph-up"></i>
           </button>
         </td>
       </tr>
-    `).join('');
-  }
+    `;
+  }).join('');
 }
+
 
 function filterStudents() {
   const searchTerm = document.getElementById('student-search')?.value.toLowerCase() || '';
   const stressFilter = document.getElementById('stress-filter')?.value;
   const sleepFilter = document.getElementById('sleep-filter')?.value;
 
-  let filteredStudents = students.filter(student => {
+  const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm);
-    
+
     let matchesStress = true;
     if (stressFilter) {
       const [min, max] = stressFilter.split('-').map(Number);
-      matchesStress = student.stress_level >= min && student.stress_level <= max;
+      if (student.stress_level != null) {
+        matchesStress = student.stress_level >= min && student.stress_level <= max;
+      } else {
+        matchesStress = false; // or true if you want to keep unknowns
+      }
     }
-    
+
     let matchesSleep = true;
     if (sleepFilter) {
       const [min, max] = sleepFilter.split('-').map(Number);
-      matchesSleep = student.sleep_hours >= min && student.sleep_hours <= max;
+      if (student.sleep_hours != null) {
+        matchesSleep = student.sleep_hours >= min && student.sleep_hours <= max;
+      } else {
+        matchesSleep = false;
+      }
     }
-    
+
     return matchesSearch && matchesStress && matchesSleep;
   });
 
   renderFilteredStudents(filteredStudents);
 }
 
+
 function renderFilteredStudents(filteredStudents) {
   const tbody = document.getElementById('student-tbody');
-  if (tbody) {
-    tbody.innerHTML = filteredStudents.map(student => `
+  if (!tbody) return;
+
+  tbody.innerHTML = filteredStudents.map(student => {
+    const stress = student.stress_level;
+    const sleep = student.sleep_hours;
+
+    const stressBadge = stress != null
+      ? `<span class="badge ${getStressLevelClass(stress)}">${stress.toFixed(1)}</span>`
+      : '<span class="badge bg-secondary">N/A</span>';
+
+    const sleepCell = sleep != null
+      ? (sleep <= 5
+        ? `<span class="badge bg-danger">${sleep.toFixed(1)}h</span>`
+        : `${sleep.toFixed(1)}h`)
+      : 'N/A';
+
+    return `
       <tr>
         <td>${student.name}</td>
-        <td><span class="badge ${getStressLevelClass(student.stress_level)}">${student.stress_level}</span></td>
-        <td>${parseFloat(student.sleep_hours) <= 5 ? `<span class="badge bg-danger">${student.sleep_hours}h</span>` : `${student.sleep_hours}h`}</td>
+        <td>${stressBadge}</td>
+        <td>${sleepCell}</td>
         <td>${student.grades ? student.grades.join(', ') : 'N/A'}</td>
         <td>
-          <button class="btn btn-sm btn-outline-primary me-1" onclick="editStudent(${student.id})">
-            <i class="bi bi-pencil"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-danger me-1" onclick="deleteStudent(${student.id})">
+<button class="btn btn-sm btn-outline-primary me-1" onclick="openUpdateModal('${student.id}')">
+  <i class="bi bi-pencil"></i>
+</button>
+          <button class="btn btn-sm btn-outline-danger me-1" onclick="deleteStudent('${student.id}')">
             <i class="bi bi-trash"></i>
           </button>
-          <button class="btn btn-sm btn-outline-warning me-1" onclick="toggleStar(${student.id})">
+          <button class="btn btn-sm btn-outline-warning me-1" onclick="toggleStar('${student.id}')">
             <i class="bi ${student.starred ? 'bi-star-fill' : 'bi-star'}"></i>
           </button>
-          <button class="btn btn-sm btn-outline-info" onclick="trackStudent(${student.id})">
-            <i class="bi bi-graph-up"></i>
+          <button class="btn btn-sm btn-outline-info" onclick="viewStudentProfile('${student.id}')">
+          <i class="bi bi-graph-up"></i>
           </button>
         </td>
       </tr>
-    `).join('');
-  }
+    `;
+  }).join('');
 }
 
 function sortTable(sortBy) {
   students.sort((a, b) => {
     if (sortBy === 'stress_level') {
-      return a.stress_level - b.stress_level;
+      return (a.stress_level ?? Infinity) - (b.stress_level ?? Infinity);
     } else if (sortBy === 'sleep_hours') {
-      return a.sleep_hours - b.sleep_hours;
+      return (a.sleep_hours ?? Infinity) - (b.sleep_hours ?? Infinity);
     }
     return 0;
   });
-  
+
   renderStudentsTable();
 }
 
@@ -666,48 +1506,152 @@ function addStudent() {
   }
 }
 
-function editStudent(id) {
-  const student = students.find(s => s.id === id);
-  if (student) {
-    const newName = prompt('Enter new name:', student.name);
-    if (newName) {
-      student.name = newName;
-      renderStudentsTable();
+function openUpdateModal(id) {
+  const student = findStudentById(id);
+  if (!student) return;
+
+  // Fill hidden id + fields
+  document.getElementById('update_student_id').value = student.student_id;
+  document.getElementById('update_first_name').value = student.first_name || '';
+  document.getElementById('update_last_name').value = student.last_name || '';
+  document.getElementById('update_email').value = student.email || '';
+  document.getElementById('update_enrolled_year').value = student.enrolled_year || '';
+
+  const courseSelect = document.getElementById('update_course_id');
+  if (courseSelect && student.current_course_id) {
+    courseSelect.value = student.current_course_id;
+  }
+
+  // Show the Bootstrap modal
+  const modalEl = document.getElementById('updateStudentModal');
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+}
+
+async function editStudent(id) {
+  const student = findStudentById(id);
+  if (!student) return;
+
+  const newName = prompt('Enter new name:', student.name);
+  if (!newName) return;
+
+  const parts = newName.trim().split(/\s+/);
+  const first_name = parts[0];
+  const last_name = parts.slice(1).join(' ') || student.last_name || '';
+
+  try {
+    const body = {
+      first_name,
+      last_name,
+      email: student.email,
+      enrolled_year: student.enrolled_year,
+      current_course_id: student.current_course_id
+    };
+
+    const res = await fetch(`${API_BASE_URL}/students/${student.student_id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showNotification(data.error || 'Failed to update student', 'danger');
+      return;
     }
+
+    student.first_name = data.first_name;
+    student.last_name = data.last_name;
+    student.name = `${data.first_name} ${data.last_name}`;
+    student.email = data.email;
+    student.enrolled_year = data.enrolled_year;
+
+    renderStudentsTable();
+    showNotification('Student updated successfully', 'success');
+  } catch (err) {
+    console.error(err);
+    showNotification('Error updating student', 'danger');
   }
 }
 
-function deleteStudent(id) {
-  if (confirm('Are you sure you want to delete this student?')) {
-    students = students.filter(s => s.id !== id);
+
+async function deleteStudent(id) {
+  const student = findStudentById(id);
+  if (!student) return;
+
+  if (!confirm(`Are you sure you want to delete ${student.name}?`)) return;
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/students/${student.student_id}`, {
+      method: 'DELETE'
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showNotification(data.error || 'Failed to delete student', 'danger');
+      return;
+    }
+
+    // Remove by matching ID as string to be safe
+    students = students.filter(s => String(s.id) !== String(id));
     renderStudentsTable();
+    showNotification('Student deleted successfully', 'success');
+  } catch (err) {
+    console.error(err);
+    showNotification('Error deleting student', 'danger');
   }
 }
 
 function toggleStar(id) {
-  const student = students.find(s => s.id === id);
-  if (student) {
-    student.starred = !student.starred;
-    renderStudentsTable();
+  const student = findStudentById(id);
+  if (!student) return;
+  student.starred = !student.starred;
+  renderStudentsTable();
+}
+
+async function trackStudent(id) {
+  const student = findStudentById(id);
+  if (!student) return;
+
+  try {
+    const data = await apiGet(`/students/${student.student_id}/wellbeing_trends`);
+    const avg = data.averages || {};
+    const latest = (data.weekly_trends || []).slice(-1)[0];
+
+    const msg = [
+      `Tracking ${data.name || student.name}`,
+      '',
+      `Average stress: ${avg.stress_level != null ? avg.stress_level.toFixed(2) : 'N/A'}`,
+      `Average sleep: ${avg.sleep_hours != null ? avg.sleep_hours.toFixed(2) + ' h' : 'N/A'}`,
+      `Average social connection: ${avg.social_connection_score != null ? avg.social_connection_score.toFixed(2) : 'N/A'}`,
+      latest
+        ? `Latest week (${latest.week}): stress=${latest.stress_level}, sleep=${latest.sleep_hours} h`
+        : ''
+    ].join('\n');
+
+    alert(msg);
+  } catch (err) {
+    console.error(err);
+    alert(`Unable to load wellbeing trends for ${student.name}`);
   }
 }
 
-function trackStudent(id) {
-  const student = students.find(s => s.id === id);
-  if (student) {
-    alert(`Tracking ${student.name} - Stress: ${student.stress_level}, Sleep: ${student.sleep_hours}h`);
-  }
+function viewStudentProfile(id) {
+  const student = findStudentById(id);
+  if (!student) return;
+  window.location.href = `student_profile.html?student_id=${encodeURIComponent(student.student_id)}`;
 }
 
 // Course functions
 function loadCourseInfo() {
   const courseSelect = document.getElementById('course-select');
   const courseInfoContent = document.getElementById('course-info-content');
-  
+
   if (courseSelect && courseInfoContent) {
     const selectedCourse = courseSelect.value;
     const course = courses.find(c => c.code.toLowerCase() === selectedCourse);
-    
+
     if (course) {
       courseInfoContent.innerHTML = `
         <p class="mb-1">
@@ -736,7 +1680,7 @@ function handleSurveyUpload(event) {
   const file = fileInput.files[0];
   if (file) {
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
       alert('Survey data uploaded successfully!');
       fileInput.value = '';
       loadWellbeingDashboard();
@@ -749,7 +1693,7 @@ function handleSurveyFileChange(event) {
   const file = event.target.files && event.target.files[0];
   if (file) {
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
       alert('Survey data uploaded successfully!');
       event.target.value = '';
       loadWellbeingDashboard();
@@ -763,11 +1707,11 @@ function handleCourseUpload(event) {
   const fileInput = document.getElementById('course-file');
   const uploadType = document.querySelector('input[name="upload-type"]:checked').value;
   const file = fileInput.files[0];
-  
+
   if (file) {
     // Simulate file upload
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
       alert(`${uploadType} data uploaded successfully!`);
       fileInput.value = '';
       loadCourseDashboard(); // Refresh data
@@ -776,11 +1720,212 @@ function handleCourseUpload(event) {
   }
 }
 
+async function loadStudentProfilePage() {
+  // 1. Read student_id from query string
+  const params = new URLSearchParams(window.location.search);
+  const studentId = params.get('student_id');
+
+  if (!studentId) {
+    showNotification('No student_id provided in URL', 'danger');
+    return;
+  }
+
+  try {
+    // 2. Get full profile and wellbeing trends + academic summary
+    const [profileRes, trendsRes, academicRes] = await Promise.all([
+      apiGet(`/students/${studentId}/full_profile`),
+      apiGet(`/students/${studentId}/wellbeing_trends`),
+      apiGet(`/students/${studentId}/academic_performance`)
+    ]);
+
+    // 3. Header / meta
+    const info = profileRes.student_info || {};
+    const name = info.name || trendsRes.name || `Student ${studentId}`;
+
+    document.getElementById('profile-name').textContent = name;
+
+    const idEl = document.getElementById('profile-student-id');
+    if (idEl) {
+      idEl.textContent = info.student_id || studentId;
+    }
+
+    const emailEl = document.getElementById('profile-email');
+    if (emailEl) {
+      emailEl.textContent = info.email || trendsRes.email || 'Email not available';
+    }
+
+    // 4. Summary tiles
+    document.getElementById('tile-avg-stress').textContent =
+      trendsRes.averages?.stress_level != null
+        ? trendsRes.averages.stress_level.toFixed(2)
+        : '–';
+
+    document.getElementById('tile-avg-sleep').textContent =
+      trendsRes.averages?.sleep_hours != null
+        ? trendsRes.averages.sleep_hours.toFixed(2)
+        : '–';
+
+    document.getElementById('tile-avg-grade').textContent =
+      academicRes.average_grade != null
+        ? academicRes.average_grade.toFixed(2)
+        : '–';
+
+    document.getElementById('tile-attendance').textContent =
+      academicRes.attendance_rate != null
+        ? academicRes.attendance_rate.toFixed(1) + '%'
+        : '–';
+
+    // 5. Weekly data arrays
+    const weekly = trendsRes.weekly_trends || [];
+    const weeks  = weekly.map(w => w.week);
+    const stress = weekly.map(w => w.stress_level);
+    const sleep  = weekly.map(w => w.sleep_hours);
+
+    // ---- COMBINED BAR+LINE: Weekly Stress & Sleep ----
+    const comboEl = document.getElementById('chart-weekly-combo');
+    if (weeks.length && comboEl) {
+      const comboData = [
+        {
+          x: weeks,
+          y: stress,
+          name: 'Stress (1–5)',
+          type: 'bar',
+          yaxis: 'y1'
+        },
+        {
+          x: weeks,
+          y: sleep,
+          name: 'Sleep (h)',
+          type: 'scatter',
+          mode: 'lines+markers',
+          yaxis: 'y2'
+        }
+      ];
+
+      const comboLayout = {
+        margin: { t: 10, r: 50, b: 40, l: 40 },
+        xaxis: { title: 'Week' },
+        yaxis: { title: 'Stress', rangemode: 'tozero' },
+        yaxis2: {
+          title: 'Sleep (h)',
+          overlaying: 'y',
+          side: 'right',
+          rangemode: 'tozero'
+        },
+        legend: { orientation: 'h', y: -0.2 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+      };
+
+      Plotly.newPlot('chart-weekly-combo', comboData, comboLayout, { responsive: true });
+    } else if (comboEl) {
+      comboEl.innerHTML =
+        '<p class="text-muted small mb-0">No weekly data.</p>';
+    }
+
+    // 6. Pie charts: distribution of stress & sleep
+    if (stress.length && document.getElementById('chart-stress-pie')) {
+      const stressBuckets = [0, 0, 0]; // low, medium, high
+      stress.forEach(v => {
+        if (v == null) return;
+        if (v <= 2)       stressBuckets[0]++;
+        else if (v <= 4)  stressBuckets[1]++;
+        else              stressBuckets[2]++;
+      });
+
+      Plotly.newPlot('chart-stress-pie', [{
+        values: stressBuckets,
+        labels: ['Low (1–2)', 'Medium (3–4)', 'High (5)'],
+        type: 'pie',
+        hole: 0.4
+      }], {
+        showlegend: true,
+        margin: { t: 10, b: 10, l: 10, r: 10 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+      }, { responsive: true });
+    } else {
+      const el = document.getElementById('chart-stress-pie');
+      if (el) {
+        el.innerHTML =
+          '<p class="text-muted small mb-0">No stress data.</p>';
+      }
+    }
+
+    if (sleep.length && document.getElementById('chart-sleep-pie')) {
+      const sleepBuckets = [0, 0, 0]; // poor, average, good
+      sleep.forEach(v => {
+        if (v == null) return;
+        if (v <= 5)          sleepBuckets[0]++;
+        else if (v <= 7)     sleepBuckets[1]++;
+        else                 sleepBuckets[2]++;
+      });
+
+      Plotly.newPlot('chart-sleep-pie', [{
+        values: sleepBuckets,
+        labels: ['Poor (≤5h)', 'Average (5–7h)', 'Good (>7h)'],
+        type: 'pie',
+        hole: 0.4
+      }], {
+        showlegend: true,
+        margin: { t: 10, b: 10, l: 10, r: 10 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+      }, { responsive: true });
+    } else {
+      const el = document.getElementById('chart-sleep-pie');
+      if (el) {
+        el.innerHTML =
+          '<p class="text-muted small mb-0">No sleep data.</p>';
+      }
+    }
+
+    // 7. Gauge / index: Stress & Sleep combined
+    const avgStress = trendsRes.averages?.stress_level ?? null;
+    const avgSleep  = trendsRes.averages?.sleep_hours ?? null;
+
+    const balanceEl = document.getElementById('chart-balance');
+    if (avgStress != null && avgSleep != null && balanceEl) {
+      // simple risk score 0–100: higher = worse
+      const stressComponent = (avgStress / 5) * 60;
+      const sleepComponent  = Math.max(0, (8 - avgSleep)) / 8 * 40;
+      const riskScore = Math.min(100, Math.max(0, stressComponent + sleepComponent));
+
+      Plotly.newPlot('chart-balance', [{
+        type: 'indicator',
+        mode: 'gauge+number',
+        value: riskScore,
+        title: { text: 'Risk Score', font: { size: 14 } },
+        gauge: {
+          axis: { range: [0, 100] },
+          bar: { color: '#8e44ad' },
+          steps: [
+            { range: [0, 33], color: 'rgba(39, 174, 96,0.4)' },
+            { range: [33, 66], color: 'rgba(243,156,18,0.4)' },
+            { range: [66, 100], color: 'rgba(231,76,60,0.5)' }
+          ]
+        }
+      }], {
+        margin: { t: 10, b: 10, l: 10, r: 10 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+      }, { responsive: true });
+    } else if (balanceEl) {
+      balanceEl.innerHTML =
+        '<p class="text-muted small mb-0">Not enough data to calculate risk.</p>';
+    }
+
+  } catch (err) {
+    console.error('Failed to load student profile page', err);
+    showNotification('Unable to load student profile.', 'danger');
+  }
+}
+
 function handleCourseFileChange(event) {
   const file = event.target.files && event.target.files[0];
   if (file) {
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
       const selected = document.querySelector('input[name="course-upload-type"]:checked');
       const typ = selected ? selected.value : 'data';
       alert(`${typ.charAt(0).toUpperCase() + typ.slice(1)} data uploaded successfully!`);
@@ -792,11 +1937,26 @@ function handleCourseFileChange(event) {
 }
 
 function exportEarlyWarning() {
-  const earlyWarningStudents = students.filter(student => student.stress_level >= 7 || student.sleep_hours <= 5);
+  // Use 1–5 stress scale and guard nulls
+  const earlyWarningStudents = students.filter(student => {
+    const stress = student.stress_level;
+    const sleep = student.sleep_hours;
+
+    const isHighStress = stress != null && stress >= 4;  // 4–5 on 1–5 scale
+    const isLowSleep = sleep != null && sleep < 5;      // < 5 hours
+
+    return isHighStress || isLowSleep;
+  });
+
   let csvContent = "Name,Status\n";
   earlyWarningStudents.forEach(student => {
-    csvContent += `${student.name},${getStatusText(student.stress_level, student.sleep_hours)}\n`;
+    const stress = student.stress_level;
+    const sleep = student.sleep_hours;
+    // scale stress to 1–10 for getStatusText/getStatusLevel
+    const mappedStress = stress != null ? stress * 2 : 0;
+    csvContent += `${student.name},${getStatusText(mappedStress, sleep ?? 8)}\n`;
   });
+
   const blob = new Blob([csvContent], { type: 'text/csv' });
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -805,6 +1965,7 @@ function exportEarlyWarning() {
   a.click();
   window.URL.revokeObjectURL(url);
 }
+
 
 // Utility functions
 function showNotification(message, type = 'info') {
@@ -818,9 +1979,9 @@ function showNotification(message, type = 'info') {
       <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
     </div>
   `;
-  
+
   document.body.appendChild(notification);
-  
+
   // Auto remove after 5 seconds
   setTimeout(() => {
     if (notification.parentElement) {
@@ -830,7 +1991,7 @@ function showNotification(message, type = 'info') {
 }
 
 // Initialize charts and data when page loads
-window.addEventListener('load', function() {
+window.addEventListener('load', function () {
   // Add fade-in animation to cards
   const cards = document.querySelectorAll('.card');
   cards.forEach((card, index) => {
@@ -839,3 +2000,4 @@ window.addEventListener('load', function() {
     }, index * 100);
   });
 });
+

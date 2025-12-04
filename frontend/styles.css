@@ -32,102 +32,6 @@ body {
   --glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.20);
 }
 
-/* Login Page Styles */
-#login-page {
-  background: linear-gradient(to bottom, var(--bs-primary) 0%, var(--brand-gradient-end) 100%) !important;
-  color-scheme: dark;
-}
-
-#login-page .card {
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 20px;
-  background: transparent;
-}
-
-#login-page .form-label {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-#login-page .text-muted {
-  color: rgba(255, 255, 255, 0.75) !important;
-}
-
-#login-page .form-control {
-  background: rgba(255, 255, 255, 0.25) !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-  color: #ffffff !important;
-  caret-color: #ffffff !important;
-  -webkit-background-clip: padding-box !important;
-  background-clip: padding-box !important;
-}
-
-#login-page .form-control::placeholder {
-  color: rgba(255, 255, 255, 0.75);
-}
-
-#login-page .form-control:focus {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.6);
-  box-shadow: 0 0 0 0.2rem rgba(60, 16, 83, 0.3);
-}
-
-#login-page input.form-control:-webkit-autofill,
-#login-page input.form-control:-webkit-autofill:hover,
-#login-page input.form-control:-webkit-autofill:focus,
-#login-page input.form-control:-webkit-autofill:active {
-  -webkit-text-fill-color: #ffffff !important;
-  caret-color: #ffffff;
-  -webkit-box-shadow: 0 0 0px 9999px rgba(255, 255, 255, 0.22) inset !important;
-  box-shadow: 0 0 0px 9999px rgba(255, 255, 255, 0.22) inset !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-  -webkit-transition: background-color 99999s ease-in-out 0s !important;
-  transition: background-color 99999s ease-in-out 0s !important;
-  -webkit-background-clip: padding-box !important;
-  background-clip: padding-box !important;
-}
-
-#login-page input:-webkit-autofill,
-#login-page input:-webkit-autofill:hover,
-#login-page input:-webkit-autofill:focus,
-#login-page input:-webkit-autofill:active {
-  -webkit-text-fill-color: #ffffff !important;
-  caret-color: #ffffff;
-  -webkit-box-shadow: 0 0 0px 9999px rgba(255, 255, 255, 0.22) inset !important;
-  box-shadow: 0 0 0px 9999px rgba(255, 255, 255, 0.22) inset !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-  -webkit-transition: background-color 99999s ease-in-out 0s !important;
-  transition: background-color 99999s ease-in-out 0s !important;
-  -webkit-background-clip: padding-box !important;
-  background-clip: padding-box !important;
-}
-
-#login-page .btn-primary {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08)),
-              linear-gradient(145deg, rgba(60, 16, 83, 0.65), rgba(60, 16, 83, 0.5));
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  color: var(--bs-primary);
-  backdrop-filter: blur(6px) saturate(140%);
-  -webkit-backdrop-filter: blur(6px) saturate(140%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 10px 24px rgba(60, 16, 83, 0.35);
-}
-
-#login-page .btn-primary:hover {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.10)),
-              linear-gradient(145deg, rgba(60, 16, 83, 0.75), rgba(60, 16, 83, 0.6));
-  border-color: rgba(255, 255, 255, 0.45);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.30), 0 12px 28px rgba(60, 16, 83, 0.40);
-  color: var(--bs-primary);
-}
-
-#login-page .card-title {
-  font-weight: 600;
-  color: #ffffff;
-  white-space: nowrap;
-  font-size: clamp(1.1rem, 3.0vw, 1.8rem);
-}
-
 /* Sidebar Styles */
 .bg-dark {
   background: linear-gradient(to bottom, #3C1053 0%, #222529 100%) !important;
@@ -360,10 +264,6 @@ html[data-role="course"] .role-wellbeing { display: none; }
   -webkit-backdrop-filter: blur(4px) saturate(130%);
   cursor: pointer;
 }
-
-/* Glass refraction hover for student table */
-.table-hover tbody tr { }
-.table-hover tbody tr:hover { }
 
 /* Button Styles */
 .btn {
@@ -671,3 +571,286 @@ html[data-role="course"] .role-wellbeing { display: none; }
 .mini-pie-title { font-size: 0.85rem; color: #495057; margin-top: 6px; }
 
 .mini-pie-tooltip { position: absolute; z-index: 1050; display: none; background: rgba(255, 255, 255, 0.85); color: #222529; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 10px; padding: 8px 10px; box-shadow: 0 8px 20px rgba(34, 37, 41, 0.24); backdrop-filter: blur(8px) saturate(160%); -webkit-backdrop-filter: blur(8px) saturate(160%); font-size: 0.85rem; line-height: 1.2; }
+
+/* Center-Aligned Vertical Metric Tiles */
+.summary-tile-vertical {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  border-radius: 18px;
+  padding: 26px 20px;
+  text-align: center;          /* ← CENTER EVERYTHING */
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.summary-tile-vertical:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+/* Centered Icon */
+.summary-icon-vertical {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px auto;   /* ← CENTER */
+  font-size: 1.9rem;
+}
+
+/* Centered text */
+.summary-label-vertical {
+  font-size: 1rem;
+  color: #a1a1a1;
+  margin-bottom: 6px;
+  font-weight: 500;
+  text-align: center;         /* ← CENTER */
+}
+
+.summary-value-vertical {
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  text-align: center;         /* ← CENTER */
+}
+
+.summary-header-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ===========================
+   Starry Forest Login Page
+   =========================== */
+
+.login-page {
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #ffffff;
+
+  /* THE REAL IMAGE BACKGROUND */
+  background: url("bg5.png") no-repeat center center/cover;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* remove your old gradient layers — NOT NEEDED */
+.login-bg {
+  display: none !important;
+}
+
+/* Center Card Wrapper */
+.login-wrapper {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  max-width: 1100px;
+  padding: 2rem 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+/* Frosted Glass Login Card */
+.login-card {
+  max-width: 430px;
+  width: 100%;
+  padding: 2.8rem 2.75rem;
+  border-radius: 22px;
+
+  /* The REAL frosted glass effect */
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+  animation: login-pop 0.7s ease-out both;
+}
+
+/* Titles */
+.login-title {
+  font-size: 1.9rem;
+  font-weight: 700;
+}
+
+.login-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.login-select {
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
+  background: rgba(13, 5, 40, 0.55);
+  border: 1px solid rgba(255,255,255,0.28);
+  color: #fefbff;
+  font-size: 0.95rem;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+
+  /* Prevent sudden white flash on click */
+  background-color: rgba(13, 5, 40, 0.55);
+}
+
+/* Username + Password Inputs */
+.login-input-wrap {
+  position: relative;
+}
+
+.login-icon {
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255,255,255,0.75);
+  font-size: 1rem;
+}
+
+.login-input {
+  border-radius: 999px;
+  padding-left: 2.5rem;
+  padding-right: 1rem;
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+
+  background: rgba(255, 255, 255, 0.12); /* brighter glass */
+  border: 1px solid rgba(255,255,255,0.32);
+
+  color: #ffffff;               /* <<< THIS FIXES TYPING TEXT */
+  font-size: 0.95rem;
+
+  backdrop-filter: blur(6px);    /* adds clarity */
+  -webkit-backdrop-filter: blur(6px);
+
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.login-input::placeholder {
+  color: rgba(248,239,255,0.75);
+}
+
+/* Login button */
+.login-btn {
+  border-radius: 999px;
+  background: #ffffff;
+  color: #3b1f6f;
+  font-weight: 600;
+  padding: 0.65rem 1.2rem;
+  border: none;
+  transition: 0.2s ease;
+}
+
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+}
+
+.login-select option {
+  background: rgba(30, 7, 60, 0.95) !important;
+  color: #ffffff !important;
+}
+
+.login-select option:hover,
+.login-select option:checked,
+.login-select option:focus {
+  background: rgba(90, 50, 160, 0.85) !important;
+  color: #fff !important;
+}
+
+.login-input:focus {
+  outline: none !important;
+  background: rgba(255, 255, 255, 0.14); /* slightly brighter */
+  border-color: rgba(255,255,255,0.55);
+
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,0.3),
+    0 0 16px rgba(160,120,255,0.4);
+}
+.login-input::placeholder {
+  color: rgba(255,255,255,0.65);
+}
+@keyframes login-pop {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ===== Student Profile Page ===== */
+#student-profile-page .profile-meta .badge {
+  background: rgba(255, 255, 255, 0.95);
+  color: #4a2575;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+#student-profile-page .profile-meta .bi-envelope {
+  font-size: 0.85rem;
+}
+
+#student-profile-page #profile-email {
+  word-break: break-all;
+}
+
+/* Make summary tiles more punchy */
+#student-profile-page .card {
+  border-radius: 20px;
+  border: none;
+  box-shadow: 0 18px 40px rgba(16, 8, 40, 0.25);
+}
+
+#student-profile-page .card-body h6 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+#student-profile-page .card-body h3 {
+  font-weight: 700;
+}
+
+/* Fix visibility of student ID + email on purple header */
+#student-profile-page .glass-header .profile-meta i,
+#student-profile-page .glass-header #profile-email {
+  color: #ffffff !important;
+}
+
+/* Make the badge clearer on dark background */
+#student-profile-page .glass-header .badge {
+  background: rgba(255, 255, 255, 0.9);
+  color: #4a2575 !important;
+  font-weight: 600;
+}
+
+#student-profile-page .profile-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#student-profile-page .profile-meta span {
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}

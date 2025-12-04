@@ -32,6 +32,11 @@ def get_student(student_id):
     """Get detailed information for a specific student."""
     return student_controller.get_student(student_id)
 
+@students_bp.route('', methods=['POST'])
+def create_student_route():
+    data = request.get_json() or {}
+    return student_controller.create_student(data)
+
 
 @students_bp.route('/at_risk', methods=['GET'])
 def get_at_risk_students():
@@ -81,7 +86,6 @@ def get_full_profile(student_id):
     """
     return student_controller.get_full_profile(student_id)
 
-
 @students_bp.route('/<string:student_id>', methods=['PUT'])
 def update_student(student_id):
     """
@@ -95,7 +99,6 @@ def update_student(student_id):
     """
     data = request.get_json()
     return student_controller.update_student(student_id, data)
-
 
 @students_bp.route('/<string:student_id>', methods=['DELETE'])
 def delete_student(student_id):
