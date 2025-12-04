@@ -1,18 +1,13 @@
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-*.pyc
-*.pyo
-*.pyd
 
-# Virtual environment
-venv/
-env/
-ENV/
-.venv/
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
 build/
 develop-eggs/
 dist/
@@ -25,16 +20,62 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+Pipfile.lock
 
-# Testing
-.pytest_cache/
-.coverage
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
 htmlcov/
 .tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
 
+# Translations
+*.mo
+*.pot
+
+# Flask stuff:
+instance/
+.webassets-cache
+*.log
+local_settings.py
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+db.sqlite3-journal
+
+# Logs directory
+logs/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # IDE
 .vscode/
@@ -43,17 +84,21 @@ htmlcov/
 *.swo
 *~
 
-# Flask instance folder
-instance/
+# Jupyter Notebook
+.ipynb_checkpoints
 
-# node modules (如果 frontend 用 npm)
-node_modules/
-dist/
-node_modules/
+# pyenv
+.python-version
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
+# Node modules (for frontend)
+node_modules/
+package-lock.json

@@ -1,25 +1,43 @@
 """
-TDD Tests for Weekly Surveys API (Flask)
-Following TDD: Write tests FIRST, then implement to make them pass.
+TDD Tests for Weekly Surveys API.
 
-Test Cases:
-1. GET /api/surveys - Returns all surveys
-2. Validate JSON structure
-3. Validate data types
-4. Handle empty database
-5. Handle database errors
+This module tests weekly survey endpoints following Test-Driven Development
+principles. Tests verify survey retrieval, data validation, and business
+rule enforcement.
+
+Test Coverage:
+    - Survey listing (GET /api/surveys)
+    - JSON response structure validation
+    - Data type validation
+    - Business rule validation (stress levels, sleep hours, etc.)
+    - Edge case handling (empty database)
+    - Application health checks
+
+Following TDD Cycle:
+    1. RED: Write test defining expected behavior
+    2. GREEN: Implement endpoint to pass test
+    3. REFACTOR: Optimize while maintaining test success
 """
 import pytest
 import json
 
 
 class TestWeeklySurveysEndpoint:
-    """Test suite for the weekly surveys GET endpoint."""
+    """
+    Test suite for weekly survey retrieval.
+    
+    Tests the GET /api/surveys endpoint for retrieving all survey responses
+    from the database.
+    """
     
     def test_get_all_surveys_success(self, client, sample_survey_data):
         """
-        Test that GET /api/surveys returns 200 OK and a list of surveys.
-        TDD: This test validates the Flask endpoint works correctly.
+        Test successful retrieval of all surveys.
+        
+        Verifies that the endpoint returns a 200 status and a list of
+        survey objects matching the expected count.
+        
+        TDD Phase: GREEN - Basic endpoint functionality.
         """
         response = client.get("/api/surveys")
         
@@ -30,8 +48,12 @@ class TestWeeklySurveysEndpoint:
     
     def test_get_surveys_json_structure(self, client, sample_survey_data):
         """
-        Test that each survey object has the correct JSON structure.
-        TDD: Defines the expected response schema.
+        Test survey response JSON structure.
+        
+        Verifies that each survey object contains all required fields
+        with correct naming, defining the API contract.
+        
+        TDD Phase: RED - Defines expected API schema.
         """
         response = client.get("/api/surveys")
         surveys = json.loads(response.data)
@@ -54,8 +76,12 @@ class TestWeeklySurveysEndpoint:
     
     def test_get_surveys_data_types(self, client, sample_survey_data):
         """
-        Test that survey fields have correct data types.
-        TDD: Ensures proper data validation.
+        Test survey field data types.
+        
+        Verifies that each field in the survey response has the correct
+        data type (int, float, string, etc.).
+        
+        TDD Phase: GREEN - Tests serialization correctness.
         """
         response = client.get("/api/surveys")
         survey = json.loads(response.data)[0]
@@ -70,8 +96,12 @@ class TestWeeklySurveysEndpoint:
     
     def test_get_surveys_stress_level_validation(self, client, sample_survey_data):
         """
-        Test that stress_level is between 1 and 5.
-        TDD: Validates business rules.
+        Test stress level business rule validation.
+        
+        Verifies that all stress level values fall within the valid
+        range of 1-5 as defined by business requirements.
+        
+        TDD Phase: GREEN - Tests business rule enforcement.
         """
         response = client.get("/api/surveys")
         surveys = json.loads(response.data)
@@ -112,12 +142,21 @@ class TestWeeklySurveysEndpoint:
 
 
 class TestSurveyDataIntegrity:
-    """Test suite for data integrity and relationships."""
+    """
+    Test suite for survey data integrity and relationships.
+    
+    Tests that survey data maintains proper relationships and constraints
+    as defined by the database schema.
+    """
     
     def test_survey_has_valid_registration_id(self, client, sample_survey_data):
         """
-        Test that surveys have valid registration IDs.
-        TDD: Ensures foreign key relationships are maintained.
+        Test foreign key relationship integrity.
+        
+        Verifies that all surveys have valid registration IDs, ensuring
+        referential integrity is maintained.
+        
+        TDD Phase: GREEN - Tests database constraints.
         """
         response = client.get("/api/surveys")
         surveys = json.loads(response.data)
@@ -149,17 +188,36 @@ class TestSurveyDataIntegrity:
 
 
 class TestFlaskAppHealth:
-    """Test suite for Flask application health checks."""
+    """
+    Test suite for Flask application health checks.
+    
+    Tests basic application endpoints to verify the Flask app is
+    running correctly.
+    """
     
     def test_root_endpoint(self, client):
-        """Test that root endpoint returns app info."""
+        """
+        Test root endpoint returns application information.
+        
+        Verifies that the root endpoint is accessible and returns
+        basic application metadata.
+        
+        TDD Phase: GREEN - Basic health check.
+        """
         response = client.get("/")
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data["framework"] == "Flask"
     
     def test_health_endpoint(self, client):
-        """Test health check endpoint."""
+        """
+        Test health check endpoint.
+        
+        Verifies that the /health endpoint returns a healthy status,
+        useful for monitoring and deployment checks.
+        
+        TDD Phase: GREEN - Health monitoring.
+        """
         response = client.get("/health")
         assert response.status_code == 200
         data = json.loads(response.data)

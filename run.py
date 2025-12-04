@@ -1,5 +1,14 @@
 """
-Flask application entry point.
+Flask Application Entry Point.
+
+This script initializes and runs the Flask application. It sets up the
+configuration, validates database connectivity, and starts the development
+server.
+
+Usage:
+    python run.py
+
+The application will run on http://0.0.0.0:5001 with debug mode enabled.
 """
 from app import create_app
 from app.config import Config, DatabaseConnector

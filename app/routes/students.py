@@ -1,6 +1,18 @@
 """
-Student analytics and at-risk identification routes.
-Flask blueprint for student profile and analytics endpoints.
+Student Routes Blueprint.
+
+This module defines Flask routes for student management operations including
+profile retrieval, analytics, at-risk identification, and CRUD operations.
+
+Endpoints:
+    GET /students - List all students
+    GET /students/<id> - Get student details
+    GET /students/at_risk - Identify at-risk students
+    GET /students/<id>/academic_performance - Get academic metrics
+    GET /students/<id>/wellbeing_trends - Get wellbeing trends
+    GET /students/<id>/full_profile - Get complete profile
+    PUT /students/<id> - Update student information
+    DELETE /students/<id> - Delete student (cascade)
 """
 from flask import Blueprint, request
 from app.controllers import student_controller

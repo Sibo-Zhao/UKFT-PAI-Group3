@@ -2,15 +2,23 @@ from flask import jsonify
 from sqlalchemy import func, and_
 from app.models import Student, ModuleRegistration, WeeklySurvey, WeeklyAttendance, Submission, db
 from app.views.schemas import student_schema, students_schema
+from app.utils.error_handlers import handle_error, log_request_error
+from app.utils.validators import StudentUpdateSchema, validate_request_data, validate_email
+import logging
+
+logger = logging.getLogger(__name__)
 
 def get_all_students():
     """Get all students in the system."""
     try:
+        logger.info("Fetching all students")
         students = Student.query.all()
         result = students_schema.dump(students)
+        logger.info(f"Successfully retrieved {len(students)} students")
         return jsonify(result), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log_request_error("get_all_students", e)
+        return handle_error(e, "in get_all_students")
 
 def create_student(data):
     try:
@@ -51,14 +59,18 @@ def create_student(data):
 def get_student(student_id):
     """Get detailed information for a specific student."""
     try:
+        logger.info(f"Fetching student: {student_id}")
         student = db.session.get(Student, student_id)
         if not student:
+            logger.warning(f"Student not found: {student_id}")
             return jsonify({"error": "Student not found"}), 404
         
         result = student_schema.dump(student)
+        logger.info(f"Successfully retrieved student: {student_id}")
         return jsonify(result), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        log_request_error("get_student", e, student_id=student_id)
+        return handle_error(e, f"in get_student for student_id={student_id}")
 
 def update_student(student_id, data):
     try:
@@ -365,3 +377,105 @@ def get_full_profile(student_id):
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+def update_student(student_id, data):
+    """
+    Update student information.
+    
+    Args:
+        student_id: Student identifier
+        data: Dictionary with fields to update
+        
+    Returns:
+        JSON response with updated student (200) or error (404/400)
+    """
+    try:
+        logger.info(f"Updating student: {student_id}")
+        student = db.session.get(Student, student_id)
+        if not student:
+            logger.warning(f"Student not found for update: {student_id}")
+            return jsonify({"error": "Student not found"}), 404
+        
+        # Validate input data
+        validated_data, errors = validate_request_data(StudentUpdateSchema, data)
+        if errors:
+            logger.warning(f"Student update validation failed for {student_id}: {errors}")
+            return jsonify({"error": "Validation failed", "details": errors}), 400
+        
+        # Update allowed fields from validated data
+        allowed_fields = ['first_name', 'last_name', 'email', 'enrolled_year', 'current_course_id']
+        updated_fields = []
+        for field in allowed_fields:
+            if field in validated_data:
+                setattr(student, field, validated_data[field])
+                updated_fields.append(field)
+        
+        db.session.commit()
+        logger.info(f"Successfully updated student {student_id}, fields: {', '.join(updated_fields)}")
+        
+        result = student_schema.dump(student)
+        return jsonify(result), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        log_request_error("update_student", e, student_id=student_id)
+        return handle_error(e, f"in update_student for student_id={student_id}")
+
+def delete_student(student_id):
+    """
+    Delete a student and all related records (cascade delete).
+    
+    Args:
+        student_id: Student identifier
+        
+    Returns:
+        JSON response with success message (200) or error (404)
+    """
+    try:
+        logger.info(f"Attempting to delete student: {student_id}")
+        student = db.session.get(Student, student_id)
+        if not student:
+            logger.warning(f"Student not found for deletion: {student_id}")
+            return jsonify({"error": "Student not found"}), 404
+        
+        # Get all registrations for this student
+        registrations = ModuleRegistration.query.filter_by(student_id=student_id).all()
+        registration_ids = [r.registration_id for r in registrations]
+        
+        logger.info(f"Deleting {len(registrations)} registrations for student: {student_id}")
+        
+        # Delete related records (cascade delete)
+        # 1. Delete weekly surveys
+        surveys_deleted = WeeklySurvey.query.filter(
+            WeeklySurvey.registration_id.in_(registration_ids)
+        ).delete(synchronize_session=False)
+        
+        # 2. Delete weekly attendance
+        attendance_deleted = WeeklyAttendance.query.filter(
+            WeeklyAttendance.registration_id.in_(registration_ids)
+        ).delete(synchronize_session=False)
+        
+        # 3. Delete submissions
+        submissions_deleted = Submission.query.filter(
+            Submission.registration_id.in_(registration_ids)
+        ).delete(synchronize_session=False)
+        
+        # 4. Delete module registrations
+        ModuleRegistration.query.filter_by(student_id=student_id).delete()
+        
+        # 5. Finally, delete the student
+        db.session.delete(student)
+        db.session.commit()
+        
+        logger.info(f"Successfully deleted student {student_id} and related records: "
+                   f"{surveys_deleted} surveys, {attendance_deleted} attendance, "
+                   f"{submissions_deleted} submissions")
+        
+        return jsonify({
+            "message": f"Student {student_id} and all related records deleted successfully"
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        log_request_error("delete_student", e, student_id=student_id)
+        return handle_error(e, f"in delete_student for student_id={student_id}")
