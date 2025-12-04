@@ -44,30 +44,49 @@ def bulk_upload_attendance(data):
 def get_attendance(filters):
     """
     Get attendance records with optional filtering.
+    Return student_id and student_name so the frontend can display them.
     """
     try:
-        query = WeeklyAttendance.query
-        
-        # Apply filters if provided
-        student_id = filters.get('student_id')
-        module_id = filters.get('module_id')
-        week_number = filters.get('week_number')
-        
-        if student_id or module_id:
-            # Join with registrations to filter by student/module
-            query = query.join(ModuleRegistration)
-            if student_id:
-                query = query.filter(ModuleRegistration.student_id == student_id)
-            if module_id:
-                query = query.filter(ModuleRegistration.module_id == module_id)
-        
+        query = WeeklyAttendance.query.join(ModuleRegistration)
+
+        student_id = filters.get("student_id")
+        module_id = filters.get("module_id")
+        week_number = filters.get("week_number")
+
+        if student_id:
+            query = query.filter(ModuleRegistration.student_id == student_id)
+        if module_id:
+            query = query.filter(ModuleRegistration.module_id == module_id)
         if week_number:
             query = query.filter(WeeklyAttendance.week_number == int(week_number))
-        
+
         attendance_records = query.all()
-        result = attendances_schema.dump(attendance_records)
-        return jsonify(result), 200
-        
+
+        results = []
+        for att in attendance_records:
+            registration = getattr(att, "registration", None)
+            student = getattr(registration, "student", None) if registration else None
+
+            student_id_val = getattr(student, "student_id", None) if student else None
+            first_name = getattr(student, "first_name", "") if student else ""
+            last_name = getattr(student, "last_name", "") if student else ""
+            student_name_val = (f"{first_name} {last_name}").strip() or None
+
+            results.append(
+                {
+                    "attendance_id": att.attendance_id,
+                    "registration_id": att.registration_id,
+                    "week_number": att.week_number,
+                    "class_date": att.class_date.isoformat() if att.class_date else None,
+                    "is_present": att.is_present,
+                    "reason_absent": att.reason_absent,
+                    "student_id": student_id_val,
+                    "student_name": student_name_val,
+                }
+            )
+
+        return jsonify(results), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

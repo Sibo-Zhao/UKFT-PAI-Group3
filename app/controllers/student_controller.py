@@ -12,6 +12,42 @@ def get_all_students():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def create_student(data):
+    try:
+        required = ["student_id", "first_name", "last_name",
+                    "email", "enrolled_year", "current_course_id"]
+        missing = [f for f in required if f not in data or data[f] in (None, "")]
+        if missing:
+            return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
+
+        if db.session.get(Student, data["student_id"]):
+            return jsonify({"error": "Student ID already exists"}), 409
+
+        if Student.query.filter_by(email=data["email"]).first():
+            return jsonify({"error": "Email already exists"}), 409
+
+        student = Student(
+            student_id=data["student_id"],
+            first_name=data["first_name"],
+            last_name=data["last_name"],
+            email=data["email"],
+            contact_no=data.get("contact_no"),
+            enrolled_year=int(data["enrolled_year"])
+            if data.get("enrolled_year") not in (None, "")
+            else None,
+            current_course_id=data["current_course_id"],
+        )
+
+        db.session.add(student)
+        db.session.commit()
+
+        result = student_schema.dump(student)
+        return jsonify(result), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+
 def get_student(student_id):
     """Get detailed information for a specific student."""
     try:
@@ -22,6 +58,31 @@ def get_student(student_id):
         result = student_schema.dump(student)
         return jsonify(result), 200
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def update_student(student_id, data):
+    try:
+        student = db.session.get(Student, student_id)
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
+
+        if 'email' in data:
+            email = data['email']
+            if email and '@' not in email:
+                return jsonify({"error": "Invalid email format"}), 400
+
+        allowed_fields = ['first_name', 'last_name', 'email', 'enrolled_year', 'current_course_id']
+        for field in allowed_fields:
+            if field in data:
+                setattr(student, field, data[field])
+
+        db.session.commit()
+
+        result = student_schema.dump(student)
+        return jsonify(result), 200
+
+    except Exception as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 def get_at_risk_students():
@@ -121,6 +182,40 @@ def get_at_risk_students():
         }), 200
         
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def delete_student(student_id):
+    try:
+        student = db.session.get(Student, student_id)
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
+
+        registrations = ModuleRegistration.query.filter_by(student_id=student_id).all()
+        registration_ids = [r.registration_id for r in registrations]
+
+        WeeklySurvey.query.filter(
+            WeeklySurvey.registration_id.in_(registration_ids)
+        ).delete(synchronize_session=False)
+
+        WeeklyAttendance.query.filter(
+            WeeklyAttendance.registration_id.in_(registration_ids)
+        ).delete(synchronize_session=False)
+
+        Submission.query.filter(
+            Submission.registration_id.in_(registration_ids)
+        ).delete(synchronize_session=False)
+
+        ModuleRegistration.query.filter_by(student_id=student_id).delete()
+
+        db.session.delete(student)
+        db.session.commit()
+
+        return jsonify({
+            "message": f"Student {student_id} and all related records deleted successfully"
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 def get_academic_performance(student_id):
