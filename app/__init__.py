@@ -4,6 +4,7 @@ University Wellbeing API - Flask application setup.
 """
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_wtf.csrf import CSRFProtect
 from app.config import Config
 from app.models import db
 from app.views.schemas import ma
@@ -14,6 +15,9 @@ from app.routes.academic import academic_bp
 from app.routes.students import students_bp
 from app.routes.reports import reports_bp
 from app.routes.auth import auth_bp
+from app.utils.logging_config import setup_logging
+
+csrf = CSRFProtect()
 
 def create_app(config_class=Config):
     """
@@ -26,18 +30,28 @@ def create_app(config_class=Config):
 
     # 2. Load Standard Configs (DEBUG, TESTING, SECRET_KEY)
     app.config.from_object(config_instance)
+    
+    # 3. Setup logging
+    setup_logging(app)
 
-    # Flask-SQLAlchemy needs 'SQLALCHEMY_DATABASE_URI', but our Config
+    # 4. Flask-SQLAlchemy needs 'SQLALCHEMY_DATABASE_URI', but our Config
     # holds it in the property 'database_url'. We assign it manually here.
     app.config['SQLALCHEMY_DATABASE_URI'] = config_instance.database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # 4. Initialize Extensions
+    # 5. Initialize Extensions
     db.init_app(app)
     ma.init_app(app)
-    CORS(app)
+    
+    # Configure CORS with credentials support for CSRF
+    CORS(app, supports_credentials=True)
+    
+    # Initialize CSRF protection
+    # Note: For API-only applications, you may want to disable CSRF for certain routes
+    # or use token-based authentication instead
+    csrf.init_app(app)
 
-    # 5. Register Blueprints
+    # 6. Register Blueprints
     app.register_blueprint(surveys_bp)
     app.register_blueprint(courses_bp)
     app.register_blueprint(assignments_bp)
@@ -46,7 +60,7 @@ def create_app(config_class=Config):
     app.register_blueprint(reports_bp)
     app.register_blueprint(auth_bp)
 
-    # 6. Global/Health Routes
+    # 7. Global/Health Routes
     @app.route('/')
     def index():
         return jsonify({
