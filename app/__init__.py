@@ -14,6 +14,9 @@ from app.routes.academic import academic_bp
 from app.routes.students import students_bp
 from app.routes.reports import reports_bp
 from app.routes.auth import auth_bp
+from app.routes.modules import modules_bp
+from app.routes.attendance import attendance_bp
+from app.routes.submissions import submissions_bp
 from app.utils.logging_config import setup_logging
 
 def create_app(config_class=Config):
@@ -51,6 +54,9 @@ def create_app(config_class=Config):
     app.register_blueprint(students_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(modules_bp)
+    app.register_blueprint(attendance_bp)
+    app.register_blueprint(submissions_bp)
 
     # 7. Global/Health Routes
     @app.route('/')
