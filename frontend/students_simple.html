@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -24,30 +25,28 @@
   <div id="students-basic">
     <div class="container-fluid">
       <div class="row">
-
-        <!-- Sidebar -->
         <div class="col-md-3 col-lg-2 px-0 bg-dark vh-100 sidebar-fixed">
           <div class="d-flex flex-column h-100">
             <div class="p-3 text-white">
-              <h5 class="mb-3 sidebar-title">WELLBEING SYSTEM</h5>
+              <h5 class="mb-3 sidebar-title"><i class="bi bi-mortarboard me-2"></i>COURSE MANAGEMENT</h5>
             </div>
 
             <ul class="nav nav-pills flex-column mb-auto">
               <li class="nav-item">
-                <a class="nav-link text-white" href="wellbeing.html">
-                  <i class="bi bi-heart-pulse me-2"></i>DASHBOARD
-                </a>
-              </li>
-
-              <li class="nav-item">
-                <a class="nav-link text-white" href="students.html">
-                  <i class="bi bi-people me-2"></i>STUDENT DETAILS
+                <a class="nav-link text-white" href="course.html">
+                  <i class="bi bi-book me-2"></i>COURSE DASHBOARD
                 </a>
               </li>
 
               <li class="nav-item">
                 <a class="nav-link active text-white" href="students_simple.html">
-                  <i class="bi bi-list-ul me-2"></i>STUDENT LIST
+                  <i class="bi bi-people me-2"></i>STUDENT DASHBOARD
+                </a>
+              </li>
+
+              <li class="nav-item">
+                <a class="nav-link text-white" href="attendance.html">
+                  <i class="bi bi-calendar-check me-2"></i>ATTENDANCE PORTAL
                 </a>
               </li>
 
@@ -67,7 +66,7 @@
               <div class="glass-card glass-interactive">
 
                 <div class="glass-header d-flex align-items-center justify-content-between">
-                  <h5 class="glass-title mb-0">STUDENT LIST</h5>
+                  <h5 class="glass-title mb-0">STUDENT DETAILS</h5>
 
                   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
                     <i class="bi bi-plus-lg me-1"></i>ADD STUDENT
@@ -89,8 +88,8 @@
                       <thead>
                         <tr>
                           <th>NAME</th>
-                          <th>STRESS</th> <!-- hidden via CSS -->
-                          <th>SLEEP</th>  <!-- hidden via CSS -->
+                          <th>STRESS</th>
+                          <th>SLEEP</th>
                           <th>GRADES</th>
                           <th>ACTIONS</th>
                         </tr>
@@ -212,4 +211,5 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="main.js"></script>
 </body>
+
 </html>
