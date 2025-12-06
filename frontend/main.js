@@ -70,6 +70,53 @@ function inferPlotType(xKey, yKey) {
 // Backend API base URL
 const API_BASE_URL = 'http://localhost:5001'; // change if your Flask port is different
 
+const USER_STORAGE_KEY = 'currentUser';
+const ROLE_DEFAULT_PAGE = {
+  wellbeing: 'wellbeing-dashboard',
+  course: 'course-dashboard'
+};
+const ROLE_ALLOWED_PAGES = {
+  wellbeing: new Set(['wellbeing.html', 'students.html', 'student_profile.html', 'index.html']),
+  course: new Set(['course.html', 'attendance.html', 'students_simple.html', 'index.html'])
+};
+
+function loadStoredUser() {
+  try {
+    const raw = sessionStorage.getItem(USER_STORAGE_KEY) || localStorage.getItem(USER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // migrate away from localStorage so closing the tab logs the user out
+    sessionStorage.setItem(USER_STORAGE_KEY, raw);
+    localStorage.removeItem(USER_STORAGE_KEY);
+    return parsed;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveCurrentUser(user) {
+  sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  localStorage.removeItem(USER_STORAGE_KEY);
+}
+
+function clearStoredUser() {
+  sessionStorage.removeItem(USER_STORAGE_KEY);
+  localStorage.removeItem(USER_STORAGE_KEY);
+}
+
+// Guard against navigating back to protected pages after logout (including bfcache restores)
+window.addEventListener('pageshow', () => {
+  const pageName = getCurrentPageName();
+  const isLoginPage = pageName === 'index.html';
+  const storedUser = loadStoredUser();
+  if (!isLoginPage && !storedUser) {
+    window.location.replace('index.html');
+    return;
+  }
+
+  enforceRoleAccess(storedUser, pageName);
+});
+
 async function apiGet(path) {
   const res = await fetch(`${API_BASE_URL}${path}`);
   if (!res.ok) {
@@ -110,10 +157,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function initializeApp() {
-  const savedUser = localStorage.getItem('currentUser');
-  if (savedUser) {
-    currentUser = JSON.parse(savedUser);
-  }
+  currentUser = loadStoredUser();
 
   const pageName = getCurrentPageName();
   const isLoginPage = pageName === 'index.html';
@@ -124,9 +168,11 @@ function initializeApp() {
   }
 
   if (isLoginPage && currentUser) {
-    window.location.href = currentUser.role === 'wellbeing' ? 'wellbeing.html' : 'course.html';
-    return;
+    // If you want to keep auto-redirect, re-enable this block.
+    // For now, stay on login even if a session exists.
   }
+
+  enforceRoleAccess(currentUser, pageName);
 
   setupEventListeners();
   applyTitleConfig();
@@ -150,6 +196,17 @@ function getCurrentPageName() {
   const path = window.location.pathname;
   const name = path.substring(path.lastIndexOf('/') + 1) || 'index.html';
   return name;
+}
+
+function enforceRoleAccess(user, pageName) {
+  if (!user) return;
+  if (pageName === 'index.html') return;
+
+  const allowedSet = ROLE_ALLOWED_PAGES[user.role];
+  if (allowedSet && !allowedSet.has(pageName)) {
+    const fallback = ROLE_DEFAULT_PAGE[user.role] || 'login';
+    showPage(fallback, true);
+  }
 }
 
 function getTitleConfig() {
@@ -255,12 +312,12 @@ async function handleLogin(event) {
     if (data.role === 'SWO') role = 'wellbeing';
 
     currentUser = { username: data.username, role };
-    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    saveCurrentUser(currentUser);
 
     if (role === 'wellbeing') {
-      showPage('wellbeing-dashboard');
+      showPage('wellbeing-dashboard', true);
     } else {
-      showPage('course-dashboard');
+      showPage('course-dashboard', true);
     }
   } catch (err) {
     console.error(err);
@@ -270,12 +327,13 @@ async function handleLogin(event) {
 
 function logout() {
   currentUser = null;
-  localStorage.removeItem('currentUser');
-  window.location.href = 'index.html';
+  clearStoredUser();
+  // Replace history entry so the previous protected page isn't reachable via back navigation
+  showPage('login', true);
 }
 
 // Page navigation
-function showPage(pageId) {
+function showPage(pageId, replace = false) {
   const map = {
     'login': 'index.html',
     'wellbeing-dashboard': 'wellbeing.html',
@@ -285,7 +343,11 @@ function showPage(pageId) {
     'settings': 'settings.html'
   };
   const target = map[pageId] || 'index.html';
-  window.location.href = target;
+  if (replace) {
+    window.location.replace(target);
+  } else {
+    window.location.href = target;
+  }
 }
 
 // Dashboard functions
