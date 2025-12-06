@@ -5,80 +5,145 @@ This module handles academic-related operations including attendance tracking,
 grade management, and submission records.
 """
 from flask import jsonify
-from app.models import WeeklyAttendance, Submission, ModuleRegistration, Assignment, db
+from app.models import WeeklyAttendance, Submission, ModuleRegistration, Assignment, Student, db
 from app.views.schemas import attendances_schema, submissions_schema, assignment_schema, attendance_schema, submission_schema, students_schema
+from app.utils.error_handlers import handle_error, log_request_error
 from datetime import datetime
+import csv
+import io
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-def bulk_upload_attendance(data):
+def upload_csv_attendance(csv_file):
     """
-    Bulk upload multiple attendance records at once.
+    Upload attendance records from CSV file.
     
-    Validates each attendance record and creates entries in the database.
-    Invalid registrations are skipped without failing the entire operation.
+    Accepts a CSV file with attendance data and creates attendance entries.
+    Uses registration_id directly for efficiency.
     
     Args:
-        data (dict): Request data containing attendance records.
-            Expected structure:
-                {
-                    "attendance_records": [
-                        {
-                            "registration_id": int,
-                            "week_number": int,
-                            "class_date": str (ISO date format),
-                            "is_present": bool,
-                            "reason_absent": str (optional)
-                        }
-                    ]
-                }
+        csv_file: File object from Flask request.files
     
     Returns:
-        tuple: A tuple containing:
-            - flask.Response: JSON response with upload summary
-            - int: HTTP status code
-                - 201: Upload successful
-                - 400: No attendance records provided
-                - 500: Server error
+        tuple: JSON response with upload summary and HTTP status code
     
-    Example Response:
-        {
-            "message": "Successfully created 45 attendance records",
-            "count": 45
-        }
+    CSV Format:
+        registration_id,week,is_present,reason_absent
+        1,1,true,
+        2,1,false,Sick
     """
     try:
-        attendance_records = data.get('attendance_records', [])
+        logger.info("Starting CSV attendance upload")
         
-        if not attendance_records:
-            return jsonify({"error": "No attendance records provided"}), 400
+        if not csv_file:
+            logger.warning("No CSV file provided")
+            return jsonify({"error": "No CSV file provided"}), 400
         
+        # Read CSV file
+        csv_data = csv_file.read().decode('utf-8')
+        csv_reader = csv.DictReader(io.StringIO(csv_data))
+        
+        # Validate CSV headers
+        required_headers = {'registration_id', 'week', 'is_present'}
+        
+        if not required_headers.issubset(set(csv_reader.fieldnames or [])):
+            logger.error(f"Invalid CSV headers. Expected: {required_headers}")
+            return jsonify({
+                "error": "Invalid CSV format",
+                "required_headers": list(required_headers),
+                "received_headers": csv_reader.fieldnames
+            }), 400
+        
+        processed_count = 0
         created_count = 0
-        for record in attendance_records:
-            # Validate registration exists
-            registration = db.session.get(ModuleRegistration, record['registration_id'])
-            if not registration:
-                continue  # Skip invalid registrations
-            
-            attendance = WeeklyAttendance(
-                registration_id=record['registration_id'],
-                week_number=record['week_number'],
-                class_date=datetime.fromisoformat(record['class_date']),
-                is_present=record['is_present'],
-                reason_absent=record.get('reason_absent')
-            )
-            db.session.add(attendance)
-            created_count += 1
+        skipped_count = 0
+        registrations_not_found = []
+        invalid_rows = []
+        
+        for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header is row 1)
+            try:
+                processed_count += 1
+                
+                registration_id = int(row['registration_id'].strip())
+                week = int(row['week'].strip())
+                is_present_str = row['is_present'].strip().lower()
+                reason_absent = row.get('reason_absent', '').strip() or None
+                
+                # Parse boolean
+                if is_present_str in ['true', '1', 'yes', 'present']:
+                    is_present = True
+                elif is_present_str in ['false', '0', 'no', 'absent']:
+                    is_present = False
+                else:
+                    invalid_rows.append(f"Row {row_num}: Invalid is_present value '{is_present_str}'")
+                    skipped_count += 1
+                    continue
+                
+                # Validate registration exists
+                registration = db.session.get(ModuleRegistration, registration_id)
+                
+                if not registration:
+                    registrations_not_found.append(f"Registration ID {registration_id}")
+                    skipped_count += 1
+                    continue
+                
+                # Check if attendance already exists for this week
+                existing = WeeklyAttendance.query.filter_by(
+                    registration_id=registration_id,
+                    week_number=week
+                ).first()
+                
+                if existing:
+                    # Update existing record
+                    existing.is_present = is_present
+                    existing.reason_absent = reason_absent
+                    existing.class_date = datetime.now().date()
+                else:
+                    # Create new attendance record
+                    attendance = WeeklyAttendance(
+                        registration_id=registration_id,
+                        week_number=week,
+                        class_date=datetime.now().date(),
+                        is_present=is_present,
+                        reason_absent=reason_absent
+                    )
+                    db.session.add(attendance)
+                
+                created_count += 1
+                
+            except ValueError as e:
+                invalid_rows.append(f"Row {row_num}: {str(e)}")
+                skipped_count += 1
+                continue
+            except Exception as e:
+                logger.error(f"Error processing row {row_num}: {str(e)}")
+                invalid_rows.append(f"Row {row_num}: {str(e)}")
+                skipped_count += 1
+                continue
         
         db.session.commit()
         
+        logger.info(f"CSV upload completed: {created_count} created/updated, {skipped_count} skipped")
+        
         return jsonify({
-            "message": f"Successfully created {created_count} attendance records",
-            "count": created_count
+            "message": "CSV upload completed",
+            "processed": processed_count,
+            "created": created_count,
+            "skipped": skipped_count,
+            "details": {
+                "registrations_not_found": registrations_not_found,
+                "total_not_found": len(registrations_not_found),
+                "invalid_rows": invalid_rows,
+                "total_invalid": len(invalid_rows)
+            }
         }), 201
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"CSV upload failed: {str(e)}")
+        return handle_error(e, "in upload_csv_attendance")
 
 def get_attendance(filters):
     """
@@ -227,52 +292,150 @@ def update_attendance(attendance_id, update_data):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-def bulk_upload_grades(data):
+def upload_csv_grades(csv_file):
     """
-    Bulk upload grades for multiple submissions.
+    Upload grades from CSV file.
     
-    Updates grade and feedback information for existing submission records.
+    Accepts a CSV file with grade data and updates/creates submission grades.
+    Uses registration_id directly for efficiency.
     
     Args:
-        data (dict): Request data containing grade information.
-            Expected structure:
-                {
-                    "grades": [
-                        {
-                            "submission_id": int,
-                            "grade_achieved": float,
-                            "grader_feedback": str (optional)
-                        }
-                    ]
-                }
+        csv_file: File object from Flask request.files
     
     Returns:
-        tuple: A tuple containing:
-            - flask.Response: JSON response with update summary
-            - int: HTTP status code
-                - 200: Update successful
-                - 400: No grades provided
-                - 500: Server error
+        tuple: JSON response with upload summary and HTTP status code
+    
+    CSV Format:
+        registration_id,assignment_id,grade
+        1,A001,85
+        2,A002,92
     """
     try:
-        grades_data = data.get('grades', [])
+        logger.info("Starting CSV grades upload")
         
-        if not grades_data:
-            return jsonify({"error": "No grades provided"}), 400
+        if not csv_file:
+            logger.warning("No CSV file provided")
+            return jsonify({"error": "No CSV file provided"}), 400
         
+        # Read CSV file
+        csv_data = csv_file.read().decode('utf-8')
+        csv_reader = csv.DictReader(io.StringIO(csv_data))
+        
+        # Validate CSV headers
+        required_headers = {'registration_id', 'assignment_id', 'grade'}
+        
+        if not required_headers.issubset(set(csv_reader.fieldnames or [])):
+            logger.error(f"Invalid CSV headers. Expected: {required_headers}")
+            return jsonify({
+                "error": "Invalid CSV format",
+                "required_headers": list(required_headers),
+                "received_headers": csv_reader.fieldnames
+            }), 400
+        
+        processed_count = 0
         updated_count = 0
-        for grade_data in grades_data:
-            submission = db.session.get(Submission, grade_data['submission_id'])
-            if submission:
-                submission.grade_achieved = grade_data.get('grade_achieved')
-                submission.grader_feedback = grade_data.get('grader_feedback')
+        skipped_count = 0
+        registrations_not_found = []
+        invalid_rows = []
+        
+        for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header is row 1)
+            try:
+                processed_count += 1
+                
+                registration_id = int(row['registration_id'].strip())
+                assignment_id = row['assignment_id'].strip()
+                grade_str = row['grade'].strip()
+                
+                # Parse grade
+                try:
+                    grade = float(grade_str)
+                    if grade < 0:
+                        invalid_rows.append(f"Row {row_num}: Grade cannot be negative")
+                        skipped_count += 1
+                        continue
+                except ValueError:
+                    invalid_rows.append(f"Row {row_num}: Invalid grade value '{grade_str}'")
+                    skipped_count += 1
+                    continue
+                
+                # Validate assignment exists
+                assignment = db.session.get(Assignment, assignment_id)
+                if not assignment:
+                    invalid_rows.append(f"Row {row_num}: Assignment {assignment_id} not found")
+                    skipped_count += 1
+                    continue
+                
+                # Check max score
+                if grade > assignment.max_score:
+                    invalid_rows.append(f"Row {row_num}: Grade {grade} exceeds max score {assignment.max_score}")
+                    skipped_count += 1
+                    continue
+                
+                # Validate registration exists
+                registration = db.session.get(ModuleRegistration, registration_id)
+                if not registration:
+                    registrations_not_found.append(f"Registration ID {registration_id}")
+                    skipped_count += 1
+                    continue
+                
+                # Verify registration is for the correct module
+                if registration.module_id != assignment.module_id:
+                    invalid_rows.append(f"Row {row_num}: Registration {registration_id} is not enrolled in module {assignment.module_id}")
+                    skipped_count += 1
+                    continue
+                
+                # Find or create submission
+                submission = Submission.query.filter_by(
+                    registration_id=registration_id,
+                    assignment_id=assignment_id
+                ).first()
+                
+                if submission:
+                    # Update existing submission
+                    submission.grade_achieved = grade
+                else:
+                    # Create new submission with grade
+                    submission = Submission(
+                        registration_id=registration_id,
+                        assignment_id=assignment_id,
+                        submitted_at=datetime.now(),
+                        grade_achieved=grade
+                    )
+                    db.session.add(submission)
+                
                 updated_count += 1
+                
+            except ValueError as e:
+                invalid_rows.append(f"Row {row_num}: {str(e)}")
+                skipped_count += 1
+                continue
+            except Exception as e:
+                logger.error(f"Error processing row {row_num}: {str(e)}")
+                invalid_rows.append(f"Row {row_num}: {str(e)}")
+                skipped_count += 1
+                continue
         
         db.session.commit()
-        return jsonify({"message": f"Updated {updated_count} grades"}), 200
+        
+        logger.info(f"CSV upload completed: {updated_count} updated/created, {skipped_count} skipped")
+        
+        return jsonify({
+            "message": "CSV upload completed",
+            "processed": processed_count,
+            "updated": updated_count,
+            "skipped": skipped_count,
+            "details": {
+                "registrations_not_found": registrations_not_found,
+                "total_not_found": len(registrations_not_found),
+                "invalid_rows": invalid_rows,
+                "total_invalid": len(invalid_rows)
+            }
+        }), 201
+        
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"CSV upload failed: {str(e)}")
+        return handle_error(e, "in upload_csv_grades")
 
 def update_grade(submission_id, update_data):
     """

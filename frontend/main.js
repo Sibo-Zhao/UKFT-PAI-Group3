@@ -2105,17 +2105,86 @@ async function loadStudentProfilePage() {
 
 function handleCourseFileChange(event) {
   const file = event.target.files && event.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      const selected = document.querySelector('input[name="course-upload-type"]:checked');
-      const typ = selected ? selected.value : 'data';
-      alert(`${typ.charAt(0).toUpperCase() + typ.slice(1)} data uploaded successfully!`);
-      event.target.value = '';
-      loadCourseDashboard();
-    };
-    reader.readAsText(file);
+  if (!file) return;
+  
+  // Validate file is CSV
+  if (!file.name.endsWith('.csv')) {
+    alert('Error: Please select a CSV file');
+    event.target.value = '';
+    return;
   }
+  
+  // Get upload type (attendance or grades)
+  const selected = document.querySelector('input[name="course-upload-type"]:checked');
+  const uploadType = selected ? selected.value : 'attendance';
+  
+  // Determine endpoint
+  const endpoint = uploadType === 'grades' 
+    ? `${API_BASE_URL}/academic/grades/csv-upload`
+    : `${API_BASE_URL}/academic/attendance/csv-upload`;
+  
+  // Show loading state
+  const uploadButton = document.querySelector('button[onclick*="course-file"]');
+  const originalText = uploadButton.innerHTML;
+  uploadButton.disabled = true;
+  uploadButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Uploading...';
+  
+  // Prepare form data
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  // Upload to backend
+  fetch(endpoint, {
+    method: 'POST',
+    body: formData
+  })
+    .then(response => response.json())
+    .then(data => {
+      // Reset button
+      uploadButton.disabled = false;
+      uploadButton.innerHTML = originalText;
+      event.target.value = '';
+      
+      if (data.message) {
+        // Show detailed results
+        const typeName = uploadType.charAt(0).toUpperCase() + uploadType.slice(1);
+        const countLabel = uploadType === 'grades' ? 'Updated' : 'Created';
+        
+        const notFoundList = data.details?.registrations_not_found || data.details?.students_not_found || [];
+        const summary = `
+${typeName} Upload Completed!
+
+${data.message}
+
+Results:
+- Processed: ${data.processed} rows
+- ${countLabel}: ${data.created || data.updated} records
+- Skipped: ${data.skipped}
+
+${notFoundList.length > 0 ? 
+  `\nNot Found:\n${notFoundList.slice(0, 5).join('\n')}${data.details.total_not_found > 5 ? `\n(and ${data.details.total_not_found - 5} more)` : ''}` : ''}
+
+${data.details?.invalid_rows && data.details.invalid_rows.length > 0 ? 
+  `\nInvalid Rows:\n${data.details.invalid_rows.slice(0, 3).join('\n')}${data.details.total_invalid > 3 ? `\n(and ${data.details.total_invalid - 3} more)` : ''}` : ''}
+        `.trim();
+        
+        alert(summary);
+        
+        // Reload dashboard to show new data
+        loadCourseDashboard();
+      } else if (data.error) {
+        alert(`Upload Failed:\n${data.error}\n\n${data.required_headers ? 'Required headers: ' + data.required_headers.join(', ') : ''}`);
+      }
+    })
+    .catch(error => {
+      // Reset button
+      uploadButton.disabled = false;
+      uploadButton.innerHTML = originalText;
+      event.target.value = '';
+      
+      console.error('Upload error:', error);
+      alert(`Upload Failed:\nNetwork error occurred.\n\nMake sure the Flask server is running on ${API_BASE_URL}`);
+    });
 }
 
 function exportEarlyWarning() {
