@@ -3,6 +3,7 @@
 // Global variables
 let currentUser = null;
 let students = [];
+let studentView = 'all';
 let courses = [];
 let currentPage = 'login';
 let attendanceRecords = [];
@@ -215,6 +216,13 @@ function setupEventListeners() {
   const updateForm = document.getElementById('updateStudentForm');
   if (updateForm) {
     updateForm.addEventListener('submit', handleUpdateStudentSubmit);
+  }
+
+  const allTab = document.getElementById('tab-all-students');
+  const favTab = document.getElementById('tab-favourite-students');
+  if (allTab && favTab) {
+    allTab.addEventListener('click', () => setStudentView('all'));
+    favTab.addEventListener('click', () => setStudentView('favourites'));
   }
 
 
@@ -952,6 +960,13 @@ function findStudentById(id) {
   return students.find(s => String(s.id) === String(id));
 }
 
+function getStudentsForCurrentView(list = students) {
+  if (studentView === 'favourites') {
+    return list.filter(s => s.starred);
+  }
+  return list;
+}
+
 // Student table functions
 async function loadStudents() {
   const tbody = document.getElementById('student-tbody');
@@ -1359,7 +1374,21 @@ function renderStudentsTable() {
   const tbody = document.getElementById('student-tbody');
   if (!tbody) return;
 
-  tbody.innerHTML = students.map(student => {
+  const visibleStudents = getStudentsForCurrentView(students);
+
+  if (!visibleStudents.length) {
+    const message = studentView === 'favourites'
+      ? 'No favourite students yet. Star students from the actions menu to pin them here.'
+      : 'No students available.';
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-muted py-4">${message}</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = visibleStudents.map(student => {
     const stress = student.stress_level;
     const sleep = student.sleep_hours;
 
@@ -1404,7 +1433,9 @@ function filterStudents() {
   const stressFilter = document.getElementById('stress-filter')?.value;
   const sleepFilter = document.getElementById('sleep-filter')?.value;
 
-  const filteredStudents = students.filter(student => {
+  const baseList = getStudentsForCurrentView(students);
+
+  const filteredStudents = baseList.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm);
 
     let matchesStress = true;
@@ -1437,6 +1468,18 @@ function filterStudents() {
 function renderFilteredStudents(filteredStudents) {
   const tbody = document.getElementById('student-tbody');
   if (!tbody) return;
+
+  if (!filteredStudents.length) {
+    const emptyMessage = studentView === 'favourites'
+      ? 'No favourite students match your filters yet.'
+      : 'No students match your filters yet.';
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center text-muted py-3">${emptyMessage}</td>
+      </tr>
+    `;
+    return;
+  }
 
   tbody.innerHTML = filteredStudents.map(student => {
     const stress = student.stress_level;
@@ -1475,6 +1518,19 @@ function renderFilteredStudents(filteredStudents) {
       </tr>
     `;
   }).join('');
+}
+
+function setStudentView(view) {
+  studentView = view;
+
+  const allBtn = document.getElementById('tab-all-students');
+  const favBtn = document.getElementById('tab-favourite-students');
+
+  if (allBtn) allBtn.classList.toggle('active', view === 'all');
+  if (favBtn) favBtn.classList.toggle('active', view === 'favourites');
+
+  // Re-apply any filters or search terms to the newly selected view
+  filterStudents();
 }
 
 function sortTable(sortBy) {
@@ -1607,7 +1663,7 @@ function toggleStar(id) {
   const student = findStudentById(id);
   if (!student) return;
   student.starred = !student.starred;
-  renderStudentsTable();
+  filterStudents();
 }
 
 async function trackStudent(id) {

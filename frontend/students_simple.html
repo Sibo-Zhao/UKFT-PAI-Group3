@@ -65,12 +65,23 @@
             <div class="col-12">
               <div class="glass-card glass-interactive">
 
-                <div class="glass-header d-flex align-items-center justify-content-between">
+                <div class="glass-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                   <h5 class="glass-title mb-0">STUDENT DETAILS</h5>
 
-                  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
-                    <i class="bi bi-plus-lg me-1"></i>ADD STUDENT
-                  </button>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="btn-group" role="group" aria-label="Student view toggle">
+                      <button type="button" class="btn btn-outline-secondary active" id="tab-all-students">
+                        <i class="bi bi-people me-1"></i>ALL
+                      </button>
+                      <button type="button" class="btn btn-outline-warning" id="tab-favourite-students">
+                        <i class="bi bi-star-fill me-1"></i>FAVOURITES
+                      </button>
+                    </div>
+
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                      <i class="bi bi-plus-lg me-1"></i>ADD STUDENT
+                    </button>
+                  </div>
                 </div>
 
                 <div class="glass-body">
