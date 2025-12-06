@@ -1809,15 +1809,71 @@ function handleSurveyUpload(event) {
 
 function handleSurveyFileChange(event) {
   const file = event.target.files && event.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      alert('Survey data uploaded successfully!');
-      event.target.value = '';
-      loadWellbeingDashboard();
-    };
-    reader.readAsText(file);
+  if (!file) return;
+  
+  // Validate file is CSV
+  if (!file.name.endsWith('.csv')) {
+    alert('Error: Please select a CSV file');
+    event.target.value = '';
+    return;
   }
+  
+  // Show loading message
+  const uploadButton = document.querySelector('button[onclick*="survey-file"]');
+  const originalText = uploadButton.innerHTML;
+  uploadButton.disabled = true;
+  uploadButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Uploading...';
+  
+  // Prepare form data
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  // Upload to backend
+  fetch(`${API_BASE_URL}/api/wellbeing/surveys/csv-upload`, {
+    method: 'POST',
+    body: formData
+  })
+    .then(response => response.json())
+    .then(data => {
+      // Reset button
+      uploadButton.disabled = false;
+      uploadButton.innerHTML = originalText;
+      event.target.value = '';
+      
+      if (data.message) {
+        // Show detailed results
+        const summary = `
+${data.message}
+
+Results:
+- Processed: ${data.processed} rows
+- Surveys Created/Updated: ${data.surveys_created}
+- Skipped: ${data.skipped}
+
+${data.details?.students_not_found && data.details.students_not_found.length > 0 ? 
+  `\nNot Found:\n${data.details.students_not_found.slice(0, 5).join(', ')}${data.details.total_not_found > 5 ? ` (and ${data.details.total_not_found - 5} more)` : ''}` : ''}
+
+${data.details?.invalid_rows && data.details.invalid_rows.length > 0 ? 
+  `\nInvalid Rows:\n${data.details.invalid_rows.slice(0, 3).join('\n')}${data.details.total_invalid > 3 ? `\n(and ${data.details.total_invalid - 3} more)` : ''}` : ''}
+        `.trim();
+        
+        alert(summary);
+        
+        // Reload dashboard to show new data
+        loadWellbeingDashboard();
+      } else if (data.error) {
+        alert(`Upload Failed:\n${data.error}`);
+      }
+    })
+    .catch(error => {
+      // Reset button
+      uploadButton.disabled = false;
+      uploadButton.innerHTML = originalText;
+      event.target.value = '';
+      
+      console.error('Upload error:', error);
+      alert(`Upload Failed:\n${error.message}\n\nMake sure the Flask server is running on ${API_BASE_URL}`);
+    });
 }
 
 function handleCourseUpload(event) {

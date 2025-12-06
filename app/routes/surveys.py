@@ -7,11 +7,12 @@ survey retrieval, bulk uploads, deletion, and wellbeing reports.
 Endpoints:
     GET /api/surveys - List all surveys
     POST /api/wellbeing/surveys/bulk - Bulk upload surveys
+    POST /api/wellbeing/surveys/csv-upload - Upload SWO surveys via CSV
     DELETE /api/wellbeing/surveys/<student_id> - Delete student surveys
     GET /wellbeing/early-warning - Get early warning report
     GET /wellbeing/weekly - Get weekly wellbeing report
 """
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from app.controllers import survey_controller, reports_controller
 
 # Create blueprint
@@ -87,3 +88,56 @@ def get_weekly_report():
         - sleep_hours: current and previous week averages, change, and description
     """
     return reports_controller.get_weekly_report()
+
+
+@surveys_bp.route('/api/wellbeing/surveys/csv-upload', methods=['POST'])
+def upload_csv_swo_surveys():
+    """
+    Upload SWO surveys from CSV file.
+    
+    Accepts a CSV file with student wellbeing survey data. Creates or updates survey
+    entries for existing student/module registrations. Each row specifies the week number.
+    Does NOT modify student information.
+    
+    Form Data:
+        file: CSV file with headers: student_id, module_id, week, stress, sleep
+    
+    CSV Format Example:
+        student_id,module_id,week,stress,sleep
+        S001,M001,1,3,7.5
+        S001,M001,2,4,6.0
+        S002,M002,1,2,8.0
+    
+    Returns:
+        JSON response with upload summary (201) or error (400, 500)
+        
+    Example Response:
+        {
+            "message": "CSV upload completed",
+            "processed": 25,
+            "surveys_created": 20,
+            "skipped": 5,
+            "details": {
+                "surveys_created_or_updated": 20,
+                "students_not_found": ["S999 (Module: M001)"],
+                "total_not_found": 1,
+                "invalid_rows": [],
+                "total_invalid": 0
+            }
+        }
+    """
+    # Check if file is present in request
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    
+    csv_file = request.files['file']
+    
+    # Check if file has a filename
+    if csv_file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    
+    # Check file extension
+    if not csv_file.filename.endswith('.csv'):
+        return jsonify({"error": "File must be a CSV file"}), 400
+    
+    return survey_controller.upload_csv_swo_surveys(csv_file)
