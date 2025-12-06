@@ -1853,7 +1853,7 @@ async function loadStudentProfilePage() {
     const [profileRes, trendsRes, academicRes] = await Promise.all([
       apiGet(`/students/${studentId}/full_profile`),
       apiGet(`/students/${studentId}/wellbeing_trends`),
-      apiGet(`/students/${studentId}/academic_performance`)
+      apiGet(`/students/${studentId}/academic-performance`)
     ]);
 
     // 3. Header / meta
@@ -1883,15 +1883,23 @@ async function loadStudentProfilePage() {
         ? trendsRes.averages.sleep_hours.toFixed(2)
         : '–';
 
+    const avgGrade = academicRes.average_grade ??
+      academicRes.analytics?.academic_performance?.average_grade ??
+      null;
+
+    const attendanceRate = academicRes.attendance_rate ??
+      academicRes.analytics?.attendance?.overall_rate ??
+      null;
+
     document.getElementById('tile-avg-grade').textContent =
-      academicRes.average_grade != null
-        ? academicRes.average_grade.toFixed(2)
-        : '–';
+      avgGrade != null
+        ? Number(avgGrade).toFixed(2)
+        : '-';
 
     document.getElementById('tile-attendance').textContent =
-      academicRes.attendance_rate != null
-        ? academicRes.attendance_rate.toFixed(1) + '%'
-        : '–';
+      attendanceRate != null
+        ? Number(attendanceRate).toFixed(1) + '%'
+        : '-';
 
     // 5. Weekly data arrays
     const weekly = trendsRes.weekly_trends || [];
