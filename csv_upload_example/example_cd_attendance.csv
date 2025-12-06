@@ -1,0 +1,4 @@
+registration_id,week,is_present,reason_absent
+1,1,true,Medical leave
+1,2,true,Travel
+1,3,false,Sick

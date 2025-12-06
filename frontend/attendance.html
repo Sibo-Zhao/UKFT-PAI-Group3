@@ -138,9 +138,6 @@
                     </div>
                   </div>
                   <div class="d-flex gap-2 mb-3">
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bulkUploadModal">
-                      <i class="bi bi-upload me-2"></i>BULK UPLOAD
-                    </button>
                     <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createModal">
                       <i class="bi bi-plus-circle me-2"></i>ADD ATTENDANCE
                     </button>
@@ -150,6 +147,9 @@
                     <button class="btn btn-outline-secondary" onclick="clearFilters()">
                       CLEAR FILTERS
                     </button>
+                    <div class="text-muted small ms-2 align-self-center">
+                      <i class="bi bi-info-circle me-1"></i>For bulk CSV uploads, use Course Dashboard
+                    </div>
                   </div>
 
                   <div class="table-responsive">
@@ -177,49 +177,6 @@
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="bulkUploadModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">BULK UPLOAD ATTENDANCE</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <p class="text-muted">UPLOAD A CSV OR JSON FILE CONTAINING ATTENDANCE RECORDS FOR MULTIPLE STUDENTS.</p>
-          <div class="mb-3">
-            <label class="form-label">MODULE</label>
-            <select class="form-select">
-              <option>Introduction to Programming</option>
-              <option>Web Development</option>
-              <option>Database Fundamentals</option>
-            </select>
-          </div>
-          <div class="row mb-3">
-            <div class="col-6">
-              <label class="form-label">WEEK NUMBER</label>
-              <input type="number" class="form-control" placeholder="e.g., 1" min="1">
-            </div>
-            <div class="col-6">
-              <label class="form-label">CLASS DATE</label>
-              <input type="date" class="form-control">
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">UPLOAD FILE</label>
-            <input type="file" class="form-control" accept=".csv,.json">
-            <div class="form-text">SUPPORTS CSV AND JSON FORMATS. FORMAT: STUDENT_ID, REGISTRATION_ID, IS_PRESENT,
-              REASON_ABSENT</div>
-          </div>
-          <div class="alert alert-info"><strong>API ENDPOINT:</strong>POST/ACADEMIC/ATTENDANCE/BULK</div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">CANCEL</button>
-          <button type="button" class="btn btn-primary" onclick="handleBulkUpload()">UPLOAD ATTENDANCE</button>
         </div>
       </div>
     </div>
